@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>中国高尔夫地图</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="title">中国高尔夫球场地图</div>
+  <div id="hint">🖱 拖拽旋转 &nbsp;|&nbsp; 滚轮缩放 &nbsp;|&nbsp; 点击光点查看详情</div>
+
+  <!-- ─── 用户档案初始化弹窗 ──────────────────────── -->
+  <div id="profile-modal">
+    <div id="profile-panel">
+      <div id="profile-header">
+        <div id="profile-icon">&#9918;</div>
+        <h2>专属高尔夫档案</h2>
+        <p>请选择您的偏好，为您生成专属数字球童</p>
+      </div>
+
+      <div id="profile-questions">
+        <div class="pq-group">
+          <div class="pq-label">打球策略</div>
+          <div class="pq-options">
+            <label class="pq-opt"><input type="radio" name="strategy" value="进取型/重炮手"><span>进取型/重炮手</span></label>
+            <label class="pq-opt"><input type="radio" name="strategy" value="稳健型/控球派"><span>稳健型/控球派</span></label>
+          </div>
+        </div>
+
+        <div class="pq-group">
+          <div class="pq-label">地形偏好</div>
+          <div class="pq-options">
+            <label class="pq-opt"><input type="radio" name="terrain" value="沙坑挑战者"><span>沙坑挑战者</span></label>
+            <label class="pq-opt"><input type="radio" name="terrain" value="水障恐慌者"><span>水障恐慌者</span></label>
+            <label class="pq-opt"><input type="radio" name="terrain" value="山地球场爱好者"><span>山地球场爱好者</span></label>
+          </div>
+        </div>
+
+        <div class="pq-group">
+          <div class="pq-label">体能状况</div>
+          <div class="pq-options">
+            <label class="pq-opt"><input type="radio" name="environment" value="怕热星人"><span>怕热星人</span></label>
+            <label class="pq-opt"><input type="radio" name="environment" value="抗风能力弱"><span>抗风能力弱</span></label>
+            <label class="pq-opt"><input type="radio" name="environment" value="体能充沛"><span>体能充沛</span></label>
+          </div>
+        </div>
+
+        <div class="pq-group">
+          <div class="pq-label">当前水平</div>
+          <div class="pq-options">
+            <label class="pq-opt"><input type="radio" name="skill" value="新手上路"><span>新手上路</span></label>
+            <label class="pq-opt"><input type="radio" name="skill" value="业余高手"><span>业余高手</span></label>
+            <label class="pq-opt"><input type="radio" name="skill" value="职业水准"><span>职业水准</span></label>
+          </div>
+        </div>
+      </div>
+
+      <button id="profile-submit" disabled>生成专属数字球童</button>
+      <p id="profile-hint">✨ 球童生成后，系统将为您进行全域扫描。地图上亮起的霓虹光点，即为您匹配度达 65% 及以上的推荐球场。</p>
+    </div>
+  </div>
+
+  <div id="overlay">
+    <div id="model-panel">
+      <canvas id="model-canvas"></canvas>
+      <div id="model-label"></div>
+    </div>
+
+    <div id="card">
+      <button id="card-close">&times;</button>
+
+      <div id="sb-info">
+        <h2 id="card-title"></h2>
+        <p id="card-desc"></p>
+      </div>
+
+      <div class="divider"></div>
+
+      <div id="sb-caddy">
+        <div id="caddy-avatar">
+          <div id="caddy-ring"></div>
+          <img src="./assets/caddy_photo.png" alt="数字球童" />
+        </div>
+        <div id="caddy-bubble">
+          <div id="bubble-accent"></div>
+          <p id="caddy-text"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+  <script type="module" src="main.js"></script>
+</body>
+</html>

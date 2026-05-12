@@ -1,0 +1,10 @@
+{
+  "name": "china-golf-map",
+  "version": "1.0.0",
+  "private": true,
+  "description": "中国高尔夫地图 — 3D 交互式高尔夫球场分布图",
+  "scripts": {
+    "dev": "npx serve .",
+    "start": "npx serve ."
+  }
+}

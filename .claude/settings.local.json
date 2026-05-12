@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(sed -i \"s/ },\\\\$/, description: \\\\\"这是一座著名的顶级高尔夫球场，更多详细信息敬请期待...\\\\\" },/\" locations.js)",
+      "Bash(sed -i \"s/ }];\\\\$/ description: \\\\\"这是一座著名的顶级高尔夫球场，更多详细信息敬请期待...\\\\\" }];/\" locations.js)"
+    ]
+  }
+}
