@@ -51,8 +51,9 @@ canvas {
   display: none;
   align-items: center;
   justify-content: center;
-  gap: clamp(16px, 3vw, 40px);
-  padding: env(safe-area-inset-top, 0px) clamp(12px, 3vw, 40px) env(safe-area-inset-bottom, 0px);
+  gap: 40px;
+  padding: 0 40px;
+  flex-wrap: wrap;
   pointer-events: none;
 }
 
@@ -62,10 +63,10 @@ canvas {
 
 /* ─── Left: 3D Model Panel ──────────────────── */
 #model-panel {
-  width: min(620px, 52vw);
+  width: 620px;
+  max-width: 90vw;
   height: 420px;
-  flex-shrink: 1;
-  min-width: 320px;
+  flex-shrink: 0;
   padding: 10px 10px 0;
   display: flex;
   flex-direction: column;
@@ -110,10 +111,10 @@ canvas {
 
 /* ─── Right: Info Card ──────────────────────── */
 #card {
-  width: min(420px, 35vw);
+  width: 420px;
+  max-width: 85vw;
   height: 420px;
-  flex-shrink: 1;
-  min-width: 280px;
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
   padding: 24px 24px 20px;
@@ -484,8 +485,9 @@ canvas {
     flex-direction: column;
     justify-content: flex-start;
     align-items: center;
-    gap: 14px;
-    padding: 60px 18px 40px;
+    flex-wrap: nowrap;
+    gap: 16px;
+    padding: 80px 18px 48px;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
@@ -498,11 +500,10 @@ canvas {
   /* Model panel: generous height for 3D model visibility */
   #model-panel {
     width: 100%;
-    max-width: 620px;
-    min-width: unset;
-    height: 38vh;
+    max-width: 600px;
+    height: 36vh;
     min-height: 200px;
-    max-height: 380px;
+    max-height: 360px;
     flex-shrink: 0;
     padding: 8px 8px 0;
     border-radius: 14px;
@@ -521,10 +522,8 @@ canvas {
   /* Card: flexible height to fit all content */
   #card {
     width: 100%;
-    max-width: 620px;
-    min-width: unset;
+    max-width: 600px;
     height: auto;
-    min-height: unset;
     flex-shrink: 0;
     padding: 20px 18px 16px;
     border-radius: 14px;
@@ -646,6 +645,34 @@ canvas {
   }
 }
 
+/* ─── Safe area support (notched phones) ──────── */
+@supports (padding-top: env(safe-area-inset-top)) {
+  #overlay {
+    padding-top: calc(0px + env(safe-area-inset-top));
+    padding-bottom: calc(0px + env(safe-area-inset-bottom));
+    padding-left: calc(40px + env(safe-area-inset-left));
+    padding-right: calc(40px + env(safe-area-inset-right));
+  }
+
+  @media (max-width: 900px) {
+    #overlay {
+      padding-top: calc(80px + env(safe-area-inset-top));
+      padding-bottom: calc(48px + env(safe-area-inset-bottom));
+      padding-left: calc(18px + env(safe-area-inset-left));
+      padding-right: calc(18px + env(safe-area-inset-right));
+    }
+  }
+
+  @media (max-width: 480px) {
+    #overlay {
+      padding-top: calc(60px + env(safe-area-inset-top));
+      padding-bottom: calc(40px + env(safe-area-inset-bottom));
+      padding-left: calc(10px + env(safe-area-inset-left));
+      padding-right: calc(10px + env(safe-area-inset-right));
+    }
+  }
+}
+
 /* ─── Phone (≤480px) ──────────────────────────── */
 @media (max-width: 480px) {
   #title {
@@ -661,14 +688,14 @@ canvas {
   }
 
   #overlay {
-    gap: 10px;
-    padding: 50px 10px 30px;
+    gap: 12px;
+    padding: 60px 10px 40px;
   }
 
   #model-panel {
-    height: 34vh;
+    height: 30vh;
     min-height: 170px;
-    max-height: 280px;
+    max-height: 260px;
     padding: 6px 6px 0;
     border-radius: 12px;
   }
