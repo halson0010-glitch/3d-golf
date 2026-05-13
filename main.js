@@ -106,6 +106,7 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.2;
+renderer.domElement.style.touchAction = "none";
 document.body.appendChild(renderer.domElement);
 
 // ─── Starfield ────────────────────────────────────────────
@@ -520,6 +521,13 @@ function animate() {
 }
 
 animate();
+
+// ─── Touch hint adaptation ─────────────────────────────────
+const hintEl = document.getElementById("hint");
+const isTouchDevice = "ontouchstart" in window || navigator.maxTouchPoints > 0;
+if (isTouchDevice) {
+  hintEl.innerHTML = "👆 单指旋转 &nbsp;|&nbsp; 双指缩放 &nbsp;|&nbsp; 点击光点查看详情";
+}
 
 // ─── Resize handler ───────────────────────────────────────
 window.addEventListener("resize", () => {
