@@ -384,17 +384,18 @@ const modelCamera = new THREE.PerspectiveCamera(45, 1, 0.1, 20);
 modelCamera.position.set(3.5, 4.5, 5.0);
 modelCamera.lookAt(0, -0.5, 0);
 
-let modelSizeReady = false;
+let lastModelW = 0;
+let lastModelH = 0;
 
 function updateModelRendererSize() {
-  const panel = modelCanvas.parentElement;
-  const w = modelCanvas.clientWidth || panel.clientWidth || 600;
-  const h = modelCanvas.clientHeight || panel.clientHeight || 380;
-  if (w > 0 && h > 0) {
-    modelRenderer.setSize(w, h, false);
+  const w = modelCanvas.clientWidth;
+  const h = modelCanvas.clientHeight;
+  if (w > 0 && h > 0 && (w !== lastModelW || h !== lastModelH)) {
+    modelRenderer.setSize(w, h);
     modelCamera.aspect = w / Math.max(h, 1);
     modelCamera.updateProjectionMatrix();
-    modelSizeReady = true;
+    lastModelW = w;
+    lastModelH = h;
   }
 }
 
@@ -516,10 +517,8 @@ function animate() {
 
   if (overlay.classList.contains("visible")) {
     updateModelRendererSize();
-    if (modelSizeReady && modelGroup.children.length > 0) {
-      modelGroup.rotation.y += 0.005;
-      modelRenderer.render(modelScene, modelCamera);
-    }
+    modelGroup.rotation.y += 0.005;
+    modelRenderer.render(modelScene, modelCamera);
   }
 }
 
