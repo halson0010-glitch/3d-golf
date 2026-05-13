@@ -440,7 +440,7 @@ loader.load(
   },
   (xhr) => {
     if (xhr.total > 0) {
-      const pct = Math.round((xhr.loaded / xhr.total) * 100);
+      const pct = Math.min(99, Math.round((xhr.loaded / xhr.total) * 100));
       loadingPercent.textContent = pct + "%";
     }
   },
