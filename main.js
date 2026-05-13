@@ -411,6 +411,10 @@ modelScene.add(modelFill);
 const modelGroup = new THREE.Group();
 modelScene.add(modelGroup);
 
+const loadingScreen = document.getElementById("loading-screen");
+const loadingPercent = document.getElementById("loading-percent");
+const loadingText = document.getElementById("loading-text");
+
 const loader = new GLTFLoader();
 loader.load(
   "./assets/golf_scene.glb",
@@ -426,10 +430,24 @@ loader.load(
     gltf.scene.position.set(-center.x * scale, -center.y * scale + 0.35, -center.z * scale);
 
     modelGroup.add(gltf.scene);
+
+    loadingText.textContent = "加载完成";
+    loadingPercent.textContent = "100%";
+    loadingScreen.classList.add("fade-out");
+    setTimeout(() => {
+      loadingScreen.style.display = "none";
+    }, 700);
   },
-  undefined,
+  (xhr) => {
+    if (xhr.total > 0) {
+      const pct = Math.round((xhr.loaded / xhr.total) * 100);
+      loadingPercent.textContent = pct + "%";
+    }
+  },
   () => {
     console.warn("Golf model failed to load, path:", "./assets/golf_scene.glb");
+    loadingText.textContent = "加载失败";
+    loadingPercent.textContent = "请刷新页面重试";
   }
 );
 
