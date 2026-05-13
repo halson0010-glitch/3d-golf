@@ -362,7 +362,10 @@ const markers = createMarkers(markerRadius);
 // ─── Controls ─────────────────────────────────────────────
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
-controls.dampingFactor = 0.08;
+controls.dampingFactor = 0.12;
+controls.rotateSpeed = 0.45;
+controls.zoomSpeed = 1.0;
+controls.panSpeed = 0.6;
 controls.autoRotate = false;
 controls.autoRotateSpeed = 0.35;
 controls.minDistance = 1.05;
