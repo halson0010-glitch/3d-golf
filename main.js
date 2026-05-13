@@ -481,6 +481,8 @@ renderer.domElement.addEventListener("pointerup", (e) => {
     modelLabel.textContent = loc.name + " · 高尔夫俱乐部";
     caddyText.textContent = getCaddyAdvice(loc);
     overlay.classList.add("visible");
+    // Force model canvas resize on mobile layout switch
+    requestAnimationFrame(() => requestAnimationFrame(updateModelRendererSize));
   } else {
     hideOverlay();
   }
