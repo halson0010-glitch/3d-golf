@@ -51,8 +51,8 @@ canvas {
   display: none;
   align-items: center;
   justify-content: center;
-  gap: 40px;
-  padding: 0 40px;
+  gap: clamp(16px, 3vw, 40px);
+  padding: env(safe-area-inset-top, 0px) clamp(12px, 3vw, 40px) env(safe-area-inset-bottom, 0px);
   pointer-events: none;
 }
 
@@ -62,9 +62,10 @@ canvas {
 
 /* ─── Left: 3D Model Panel ──────────────────── */
 #model-panel {
-  width: 620px;
+  width: min(620px, 52vw);
   height: 420px;
-  flex-shrink: 0;
+  flex-shrink: 1;
+  min-width: 320px;
   padding: 10px 10px 0;
   display: flex;
   flex-direction: column;
@@ -109,9 +110,10 @@ canvas {
 
 /* ─── Right: Info Card ──────────────────────── */
 #card {
-  width: 420px;
+  width: min(420px, 35vw);
   height: 420px;
-  flex-shrink: 0;
+  flex-shrink: 1;
+  min-width: 280px;
   display: flex;
   flex-direction: column;
   padding: 24px 24px 20px;
@@ -150,9 +152,11 @@ canvas {
   border-radius: 50%;
   cursor: pointer;
   transition: all 0.25s;
+  touch-action: manipulation;
 }
 
-#card-close:hover {
+#card-close:hover,
+#card-close:active {
   background: rgba(255, 80, 80, 0.2);
   border-color: rgba(255, 80, 80, 0.4);
   color: #ff8888;
@@ -194,6 +198,8 @@ canvas {
   line-height: 1.7;
   color: rgba(200, 210, 225, 0.7);
   letter-spacing: 0.8px;
+  max-height: 160px;
+  overflow-y: auto;
 }
 
 /* ─── Caddy HUD ─────────────────────────────── */
@@ -459,8 +465,8 @@ canvas {
   letter-spacing: 1px;
 }
 
-/* ─── Tablet & Small Screens (≤768px) ─────────── */
-@media (max-width: 768px) {
+/* ─── Tablet & Small Screens (≤900px) ─────────── */
+@media (max-width: 900px) {
   #title {
     top: 20px;
     font-size: 20px;
@@ -477,27 +483,29 @@ canvas {
   #overlay {
     flex-direction: column;
     justify-content: flex-start;
-    align-items: stretch;
-    gap: 10px;
-    padding: 16px 14px;
+    align-items: center;
+    gap: 14px;
+    padding: 60px 18px 40px;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
   }
 
   #overlay.visible {
     flex-direction: column;
   }
 
-  /* Model panel: tighter height, elastic width */
+  /* Model panel: generous height for 3D model visibility */
   #model-panel {
     width: 100%;
-    max-width: 100%;
-    height: 34vh;
-    min-height: 160px;
-    max-height: 300px;
+    max-width: 620px;
+    min-width: unset;
+    height: 38vh;
+    min-height: 200px;
+    max-height: 380px;
     flex-shrink: 0;
     padding: 8px 8px 0;
-    border-radius: 12px;
+    border-radius: 14px;
   }
 
   #model-canvas {
@@ -505,54 +513,55 @@ canvas {
   }
 
   #model-label {
-    padding: 7px 0 9px;
-    font-size: 12px;
+    padding: 8px 0 10px;
+    font-size: 13px;
     letter-spacing: 1.5px;
   }
 
-  /* Card: flexible height, self-scrolling */
+  /* Card: flexible height to fit all content */
   #card {
     width: 100%;
-    max-width: 100%;
+    max-width: 620px;
+    min-width: unset;
     height: auto;
-    min-height: 220px;
+    min-height: unset;
     flex-shrink: 0;
-    padding: 16px 14px 12px;
-    border-radius: 12px;
+    padding: 20px 18px 16px;
+    border-radius: 14px;
     overflow-y: visible;
   }
 
   #card-title {
-    font-size: 17px;
+    font-size: 18px;
     letter-spacing: 1px;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
   }
 
   #card-desc {
-    font-size: 12px;
-    line-height: 1.55;
-    max-height: 120px;
-    overflow-y: auto;
+    font-size: 13px;
+    line-height: 1.65;
+    max-height: none;
+    overflow-y: visible;
   }
 
   #card-close {
-    top: 8px;
-    right: 8px;
-    width: 40px;
-    height: 40px;
-    font-size: 18px;
-    line-height: 38px;
+    top: 10px;
+    right: 10px;
+    width: 44px;
+    height: 44px;
+    font-size: 20px;
+    line-height: 42px;
   }
 
   .divider {
-    margin: 10px 0;
+    margin: 12px 0;
   }
 
-  /* Caddy: compact */
+  /* Caddy: compact but readable */
   #caddy-avatar {
-    width: 60px;
-    height: 60px;
-    margin-right: -20px;
+    width: 64px;
+    height: 64px;
+    margin-right: -22px;
   }
 
   #caddy-ring {
@@ -560,14 +569,14 @@ canvas {
   }
 
   #caddy-bubble {
-    padding: 10px 10px 10px 28px;
-    min-height: 60px;
+    padding: 12px 12px 12px 32px;
+    min-height: 64px;
     border-radius: 0 10px 10px 0;
   }
 
   #caddy-text {
     font-size: 12px;
-    line-height: 1.5;
+    line-height: 1.55;
   }
 
   #bubble-accent {
@@ -652,52 +661,53 @@ canvas {
   }
 
   #overlay {
-    gap: 8px;
-    padding: 10px 8px;
+    gap: 10px;
+    padding: 50px 10px 30px;
   }
 
   #model-panel {
-    height: 28vh;
-    min-height: 130px;
-    max-height: 220px;
+    height: 34vh;
+    min-height: 170px;
+    max-height: 280px;
     padding: 6px 6px 0;
-    border-radius: 10px;
+    border-radius: 12px;
   }
 
   #model-label {
-    padding: 5px 0 7px;
+    padding: 6px 0 8px;
     font-size: 11px;
   }
 
   #card {
-    min-height: 200px;
-    padding: 12px 10px 10px;
-    border-radius: 10px;
+    padding: 14px 12px 12px;
+    border-radius: 12px;
   }
 
   #card-title {
-    font-size: 15px;
+    font-size: 16px;
   }
 
   #card-desc {
-    font-size: 11px;
-    max-height: 90px;
+    font-size: 12px;
+    line-height: 1.6;
+    max-height: none;
+    overflow-y: visible;
   }
 
   #card-close {
-    top: 6px;
-    right: 6px;
-    width: 36px;
-    height: 36px;
-    font-size: 16px;
-    line-height: 34px;
+    top: 8px;
+    right: 8px;
+    width: 40px;
+    height: 40px;
+    font-size: 18px;
+    line-height: 38px;
   }
 
   /* Caddy: tight but legible */
   #caddy-avatar {
-    width: 48px;
-    height: 48px;
-    margin-right: -16px;
+    width: 52px;
+    height: 52px;
+    margin-right: -18px;
   }
 
   #caddy-ring {
@@ -705,13 +715,13 @@ canvas {
   }
 
   #caddy-bubble {
-    padding: 8px 8px 8px 24px;
-    min-height: 48px;
+    padding: 10px 10px 10px 28px;
+    min-height: 52px;
   }
 
   #caddy-text {
     font-size: 11px;
-    line-height: 1.45;
+    line-height: 1.5;
   }
 
   /* Radio options stack vertically */
