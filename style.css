@@ -11,6 +11,13 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
 canvas {
   display: block;
 }
@@ -41,6 +48,182 @@ canvas {
   letter-spacing: 2px;
   pointer-events: none;
   z-index: 10;
+}
+
+#app-toolbar {
+  position: fixed;
+  top: 88px;
+  left: 50%;
+  z-index: 12;
+  display: flex;
+  gap: 10px;
+  transform: translateX(-50%);
+  pointer-events: auto;
+}
+
+#app-toolbar button,
+#model-tools button,
+#caddy-controls button,
+#list-close,
+#photo-detail-close {
+  border: 1px solid rgba(130, 190, 255, 0.24);
+  background: rgba(12, 22, 36, 0.72);
+  color: rgba(224, 238, 255, 0.88);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.2s;
+}
+
+#app-toolbar button {
+  min-width: 96px;
+  height: 34px;
+  padding: 0 13px;
+  font-size: 12px;
+  letter-spacing: 1px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+#app-toolbar button:hover,
+#model-tools button:hover,
+#caddy-controls button:hover,
+#list-close:hover,
+#photo-detail-close:hover {
+  background: rgba(36, 78, 112, 0.78);
+  border-color: rgba(120, 210, 255, 0.48);
+  color: #ffffff;
+}
+
+/* ─── Course List Panel ───────────────────────── */
+#list-panel {
+  position: fixed;
+  top: 136px;
+  right: 24px;
+  bottom: 32px;
+  z-index: 18;
+  width: min(410px, calc(100vw - 32px));
+  display: none;
+  flex-direction: column;
+  background: rgba(9, 16, 28, 0.82);
+  border: 1px solid rgba(120, 200, 255, 0.22);
+  border-radius: 14px;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(22px) saturate(130%);
+  -webkit-backdrop-filter: blur(22px) saturate(130%);
+  overflow: hidden;
+}
+
+#list-panel.visible {
+  display: flex;
+}
+
+#list-header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px 18px 14px;
+  border-bottom: 1px solid rgba(120, 200, 255, 0.12);
+}
+
+#list-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #eff6ff;
+  letter-spacing: 1px;
+}
+
+#list-subtitle {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: rgba(198, 220, 240, 0.62);
+}
+
+#list-close {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  font-size: 17px;
+  line-height: 30px;
+}
+
+#list-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px;
+}
+
+.course-row {
+  width: 100%;
+  display: block;
+  margin-bottom: 9px;
+  padding: 12px 13px;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-radius: 8px;
+  color: inherit;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, transform 0.2s;
+}
+
+.course-row:hover {
+  background: rgba(52, 104, 136, 0.26);
+  border-color: rgba(120, 210, 255, 0.34);
+  transform: translateY(-1px);
+}
+
+.course-row-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 7px;
+}
+
+.course-row-title strong {
+  min-width: 0;
+  font-size: 14px;
+  color: #f4f8ff;
+  letter-spacing: 0.5px;
+}
+
+.course-row-title span {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: rgba(135, 230, 255, 0.9);
+}
+
+.course-row-desc {
+  margin: 0 0 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: rgba(205, 218, 232, 0.64);
+}
+
+.course-row-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.course-row-tags span {
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: rgba(130, 190, 255, 0.08);
+  color: rgba(210, 230, 246, 0.72);
+  font-size: 11px;
+}
+
+.list-empty {
+  padding: 28px 16px;
+  color: rgba(220, 235, 255, 0.68);
+  font-size: 13px;
+  line-height: 1.7;
+  text-align: center;
 }
 
 /* ─── Loading Screen ──────────────────────────── */
@@ -135,7 +318,7 @@ canvas {
 /* ─── Left: 3D Model Panel ──────────────────── */
 #model-panel {
   width: min(620px, 52vw);
-  height: 420px;
+  height: 520px;
   flex-shrink: 1;
   min-width: 320px;
   padding: 10px 10px 0;
@@ -153,6 +336,52 @@ canvas {
   pointer-events: auto;
   animation: panelIn 0.4s ease-out;
   overflow: hidden;
+  position: relative;
+}
+
+#model-tools {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  right: 16px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  pointer-events: auto;
+}
+
+#model-tools button {
+  height: 30px;
+  padding: 0 11px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+#model-tools button.active {
+  background: rgba(26, 116, 88, 0.76);
+  border-color: rgba(100, 255, 205, 0.48);
+}
+
+#model-speed-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  height: 30px;
+  padding: 0 10px;
+  color: rgba(220, 238, 255, 0.76);
+  font-size: 11px;
+  border: 1px solid rgba(130, 190, 255, 0.18);
+  border-radius: 8px;
+  background: rgba(12, 22, 36, 0.62);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+#model-speed-control input {
+  width: 110px;
+  accent-color: #66e0ff;
 }
 
 #model-canvas {
@@ -161,6 +390,12 @@ canvas {
   flex: 1;
   min-height: 0;
   border-radius: 8px 8px 0 0;
+  cursor: grab;
+  touch-action: none;
+}
+
+#model-canvas:active {
+  cursor: grabbing;
 }
 
 #model-label {
@@ -180,10 +415,74 @@ canvas {
   border-top: 1px solid rgba(0, 200, 240, 0.12);
 }
 
+#photo-detail {
+  position: absolute;
+  inset: 10px 10px 44px;
+  z-index: 5;
+  display: none;
+  overflow: hidden;
+  border-radius: 8px 8px 0 0;
+  background: #0a1116;
+}
+
+#photo-detail.visible {
+  display: block;
+}
+
+#photo-detail-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: saturate(1.18) contrast(1.08);
+  transform: scale(1.04);
+}
+
+#photo-detail::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.12), transparent 42%, rgba(0, 0, 0, 0.35)),
+    radial-gradient(circle at 50% 46%, transparent 0 48%, rgba(0, 0, 0, 0.2) 100%);
+}
+
+#photo-detail-caption {
+  position: absolute;
+  left: 16px;
+  right: 120px;
+  bottom: 16px;
+  z-index: 2;
+  color: #fff;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.7);
+}
+
+#photo-detail-caption strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 18px;
+  letter-spacing: 1px;
+}
+
+#photo-detail-caption span {
+  font-size: 12px;
+  color: rgba(235, 245, 255, 0.8);
+}
+
+#photo-detail-close {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  z-index: 3;
+  height: 32px;
+  padding: 0 12px;
+  font-size: 12px;
+}
+
 /* ─── Right: Info Card ──────────────────────── */
 #card {
   width: min(420px, 35vw);
-  height: 420px;
+  height: 520px;
   flex-shrink: 1;
   min-width: 280px;
   display: flex;
@@ -270,16 +569,16 @@ canvas {
   line-height: 1.7;
   color: rgba(200, 210, 225, 0.7);
   letter-spacing: 0.8px;
-  max-height: 160px;
+  max-height: 126px;
   overflow-y: auto;
 }
 
 /* ─── Caddy HUD ─────────────────────────────── */
 #sb-caddy {
-  flex: 1;
-  min-height: 0;
+  flex: 0 0 auto;
+  min-height: 112px;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   position: relative;
   padding: 4px 0;
 }
@@ -292,6 +591,7 @@ canvas {
   width: 92px;
   height: 92px;
   margin-right: -28px;
+  margin-top: 18px;
   border-radius: 50%;
 }
 
@@ -333,7 +633,7 @@ canvas {
   flex: 1;
   z-index: 1;
   position: relative;
-  padding: 16px 18px 16px 40px;
+  padding: 20px 18px 18px 42px;
   background: rgba(18, 30, 50, 0.45);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
@@ -341,9 +641,13 @@ canvas {
   border-left: none;
   border-radius: 0 12px 12px 0;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-  min-height: 85px;
+  min-height: 104px;
+  max-height: 190px;
+  overflow-y: auto;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  scroll-padding-top: 18px;
+  overscroll-behavior: contain;
 }
 
 /* Left accent bar */
@@ -364,12 +668,67 @@ canvas {
 }
 
 #caddy-text {
+  display: block;
   font-size: 14px;
   line-height: 1.7;
   color: #b8e8f8;
   letter-spacing: 0.8px;
   margin: 0;
   text-shadow: 0 0 6px rgba(140, 220, 255, 0.2);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+#caddy-controls {
+  flex-shrink: 0;
+  margin-top: 14px;
+}
+
+#caddy-modes {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+  margin-bottom: 9px;
+}
+
+#caddy-modes button {
+  height: 30px;
+  padding: 0 6px;
+  font-size: 11px;
+}
+
+#caddy-modes button.active {
+  background: rgba(28, 112, 94, 0.78);
+  border-color: rgba(90, 240, 205, 0.45);
+  color: #ffffff;
+}
+
+#caddy-note {
+  width: 100%;
+  min-height: 58px;
+  max-height: 88px;
+  resize: vertical;
+  padding: 10px 12px;
+  color: rgba(225, 240, 255, 0.86);
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(130, 190, 255, 0.16);
+  border-radius: 8px;
+  outline: none;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+#caddy-note:focus {
+  border-color: rgba(110, 220, 255, 0.45);
+}
+
+#caddy-ask {
+  width: 100%;
+  height: 34px;
+  margin-top: 8px;
+  font-size: 12px;
+  letter-spacing: 1px;
 }
 
 /* ─── Profile Modal ─────────────────────────── */
@@ -537,6 +896,42 @@ canvas {
   letter-spacing: 1px;
 }
 
+.pq-extra-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.pq-extra-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pq-extra-grid label span {
+  font-size: 12px;
+  color: rgba(145, 190, 245, 0.86);
+  letter-spacing: 1px;
+}
+
+.pq-extra-grid select,
+.pq-extra-grid input {
+  width: 100%;
+  height: 38px;
+  padding: 0 10px;
+  color: rgba(226, 238, 255, 0.86);
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  outline: none;
+}
+
+.pq-extra-grid select:focus,
+.pq-extra-grid input:focus {
+  border-color: rgba(120, 190, 255, 0.5);
+}
+
 /* ─── Tablet & Small Screens (≤900px) ─────────── */
 @media (max-width: 900px) {
   #title {
@@ -545,10 +940,33 @@ canvas {
     letter-spacing: 4px;
   }
 
+  #app-toolbar {
+    top: 52px;
+    width: calc(100% - 24px);
+    justify-content: center;
+    gap: 6px;
+  }
+
+  #app-toolbar button {
+    min-width: 0;
+    flex: 1;
+    max-width: 140px;
+    padding: 0 8px;
+    font-size: 11px;
+  }
+
   #hint {
     bottom: 14px;
     font-size: 11px;
     letter-spacing: 1px;
+  }
+
+  #list-panel {
+    top: 92px;
+    left: 14px;
+    right: 14px;
+    bottom: 48px;
+    width: auto;
   }
 
   /* Overlay: stack vertically, scrollable */
@@ -580,6 +998,16 @@ canvas {
     border-radius: 14px;
   }
 
+  #model-tools {
+    top: 12px;
+    left: 12px;
+    right: 12px;
+  }
+
+  #model-speed-control input {
+    width: 82px;
+  }
+
   #model-canvas {
     border-radius: 6px 6px 0 0;
   }
@@ -601,6 +1029,14 @@ canvas {
     padding: 20px 18px 16px;
     border-radius: 14px;
     overflow-y: visible;
+  }
+
+  #caddy-modes {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  #caddy-bubble {
+    max-height: none;
   }
 
   #card-title {
@@ -634,6 +1070,7 @@ canvas {
     width: 64px;
     height: 64px;
     margin-right: -22px;
+    margin-top: 10px;
   }
 
   #caddy-ring {
@@ -641,7 +1078,7 @@ canvas {
   }
 
   #caddy-bubble {
-    padding: 12px 12px 12px 32px;
+    padding: 14px 12px 14px 32px;
     min-height: 64px;
     border-radius: 0 10px 10px 0;
   }
@@ -716,6 +1153,11 @@ canvas {
     font-size: 10px;
     margin-top: 12px;
   }
+
+  .pq-extra-grid {
+    grid-template-columns: 1fr;
+    gap: 9px;
+  }
 }
 
 /* ─── Phone (≤480px) ──────────────────────────── */
@@ -732,9 +1174,18 @@ canvas {
     letter-spacing: 0.5px;
   }
 
+  #app-toolbar {
+    top: 42px;
+  }
+
+  #app-toolbar button {
+    height: 30px;
+    font-size: 10px;
+  }
+
   #overlay {
     gap: 10px;
-    padding: 64px 12px 40px;
+    padding: 82px 12px 40px;
   }
 
   #model-panel {
@@ -748,6 +1199,45 @@ canvas {
   #model-label {
     padding: 6px 0 8px;
     font-size: 11px;
+  }
+
+  #model-tools {
+    gap: 6px;
+  }
+
+  #model-tools button {
+    height: 28px;
+    padding: 0 8px;
+    font-size: 10px;
+  }
+
+  #model-speed-control {
+    height: 28px;
+    padding: 0 7px;
+    gap: 5px;
+  }
+
+  #model-speed-control span {
+    display: none;
+  }
+
+  #model-speed-control input {
+    width: 74px;
+  }
+
+  #photo-detail-caption {
+    left: 12px;
+    right: 12px;
+    bottom: 54px;
+  }
+
+  #photo-detail-caption strong {
+    font-size: 15px;
+  }
+
+  #photo-detail-close {
+    right: 12px;
+    bottom: 12px;
   }
 
   #card {
@@ -780,6 +1270,7 @@ canvas {
     width: 52px;
     height: 52px;
     margin-right: -18px;
+    margin-top: 8px;
   }
 
   #caddy-ring {
@@ -787,7 +1278,7 @@ canvas {
   }
 
   #caddy-bubble {
-    padding: 10px 10px 10px 28px;
+    padding: 12px 10px 12px 28px;
     min-height: 52px;
   }
 
@@ -805,6 +1296,14 @@ canvas {
   .pq-opt {
     min-width: auto;
     padding: 10px 14px;
+  }
+
+  #list-title {
+    font-size: 16px;
+  }
+
+  #list-subtitle {
+    font-size: 11px;
   }
 }
 

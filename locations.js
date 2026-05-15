@@ -398,5 +398,241 @@ export const golfLocations = [
   { 
     name: "厦门东方", lat: 24.515, lng: 118.015, description: "常年举办中国女子公开赛，紧邻海岸线。球场将海洋、沙滩与亚热带丛林完美融合，是鹭岛极具代表性的地标。",
     tags: { strategy: "进取型/重炮手", terrain: "沙坑挑战者", environment: "体能充沛", skill: "职业水准" }
+  },
+  { 
+    name: "海口西海岸", lat: 20.032, lng: 110.168, description: "靠近海口西海岸的滨海球场，海风和开阔视野明显，适合想练习低弹道和抗风控制的球手。",
+    tags: { strategy: "稳健型/控球派", terrain: "沙坑挑战者", environment: "抗风能力弱", skill: "业余高手" }
+  },
+  { 
+    name: "儋州蓝洋温泉", lat: 19.515, lng: 109.512, description: "依托温泉度假区与丘陵地形展开，节奏舒缓但落点变化多，适合休闲球局和短杆控制训练。",
+    tags: { strategy: "稳健型/控球派", terrain: "山地球场爱好者", environment: "怕热星人", skill: "新手上路" }
+  },
+  { 
+    name: "深圳世纪海景", lat: 22.602, lng: 114.288, description: "深圳东部山海之间的球场，海风、坡度与林线共同影响线路选择，对攻守切换要求较高。",
+    tags: { strategy: "稳健型/控球派", terrain: "山地球场爱好者", environment: "抗风能力弱", skill: "业余高手" }
+  },
+  { 
+    name: "惠州汤泉", lat: 23.105, lng: 114.545, description: "岭南温泉度假氛围浓厚，球道穿行于湖泊与缓坡之间，适合中高差点球友稳定推进。",
+    tags: { strategy: "稳健型/控球派", terrain: "水障恐慌者", environment: "抗风能力弱", skill: "新手上路" }
+  },
+  { 
+    name: "惠州涛景", lat: 22.925, lng: 114.735, description: "东江与丘陵地貌交错，部分球道视线开阔但落点并不宽容，考验开球方向和第二杆距离感。",
+    tags: { strategy: "进取型/重炮手", terrain: "山地球场爱好者", environment: "体能充沛", skill: "业余高手" }
+  },
+  { 
+    name: "东莞银利", lat: 22.895, lng: 114.055, description: "珠三角常见的城市近郊型球场，球道节奏紧凑，适合商务球局与稳定控球型打法。",
+    tags: { strategy: "稳健型/控球派", terrain: "水障恐慌者", environment: "抗风能力弱", skill: "新手上路" }
+  },
+  { 
+    name: "佛山南海桃园", lat: 23.165, lng: 113.045, description: "依托丘陵与湖面打造，球道起伏温和但障碍布局频繁，适合练习策略性保帕。",
+    tags: { strategy: "稳健型/控球派", terrain: "水障恐慌者", environment: "抗风能力弱", skill: "业余高手" }
+  },
+  { 
+    name: "广州麓湖", lat: 23.165, lng: 113.305, description: "城市中心山地型球场，老树、坡度和窄落点形成独特挑战，更适合准确率高的球手。",
+    tags: { strategy: "稳健型/控球派", terrain: "山地球场爱好者", environment: "抗风能力弱", skill: "职业水准" }
+  },
+  { 
+    name: "清远假日半岛", lat: 23.582, lng: 113.145, description: "湖泊和起伏地形组合明显，球道景观开阔，对初中级球员较友好，也适合家庭度假球局。",
+    tags: { strategy: "稳健型/控球派", terrain: "水障恐慌者", environment: "体能充沛", skill: "新手上路" }
+  },
+  { 
+    name: "南宁青秀山", lat: 22.815, lng: 108.405, description: "南宁城市绿肺附近的山林型球场，植被密集、湿热明显，适合体能充沛的稳健型球手。",
+    tags: { strategy: "稳健型/控球派", terrain: "山地球场爱好者", environment: "体能充沛", skill: "业余高手" }
+  },
+  { 
+    name: "桂林山水", lat: 25.185, lng: 110.295, description: "喀斯特山水景观强烈，球道常伴随山体视觉压迫，适合喜欢地形变化的球手。",
+    tags: { strategy: "进取型/重炮手", terrain: "山地球场爱好者", environment: "怕热星人", skill: "业余高手" }
+  },
+  { 
+    name: "厦门凯歌", lat: 24.625, lng: 118.115, description: "闽南丘陵与湖面结合，球道宽窄转换频繁，适合练习开球策略和中铁距离控制。",
+    tags: { strategy: "稳健型/控球派", terrain: "水障恐慌者", environment: "抗风能力弱", skill: "业余高手" }
+  },
+  { 
+    name: "泉州高尔夫", lat: 24.915, lng: 118.595, description: "沿海城市近郊球场，风向和沙坑布局会放大开球偏差，适合重视落点管理的球手。",
+    tags: { strategy: "稳健型/控球派", terrain: "沙坑挑战者", environment: "抗风能力弱", skill: "业余高手" }
+  },
+  { 
+    name: "武夷山太伟", lat: 27.732, lng: 118.035, description: "山水旅游目的地中的度假型球场，环境清凉，球道依势起伏，适合避暑和节奏型打法。",
+    tags: { strategy: "稳健型/控球派", terrain: "山地球场爱好者", environment: "怕热星人", skill: "新手上路" }
+  },
+  { 
+    name: "宁波东方", lat: 29.785, lng: 121.625, description: "宁波近郊生态球场，球道在湖泊和林带之间切换，适合精准上球道的稳健型球手。",
+    tags: { strategy: "稳健型/控球派", terrain: "水障恐慌者", environment: "抗风能力弱", skill: "业余高手" }
+  },
+  { 
+    name: "杭州九桥", lat: 30.335, lng: 120.365, description: "钱塘江附近的平原球场，水域与风向影响明显，适合练习逆风和侧风下的落点选择。",
+    tags: { strategy: "进取型/重炮手", terrain: "水障恐慌者", environment: "抗风能力弱", skill: "业余高手" }
+  },
+  { 
+    name: "绍兴会稽山", lat: 29.975, lng: 120.615, description: "江南山水间的起伏球场，山体、湿地和林线交替出现，适合喜欢变化地形的球手。",
+    tags: { strategy: "稳健型/控球派", terrain: "山地球场爱好者", environment: "怕热星人", skill: "业余高手" }
+  },
+  { 
+    name: "嘉兴九龙山", lat: 30.605, lng: 121.055, description: "靠近杭州湾的山海度假球场，视野开阔且风力明显，策略选择比单纯距离更重要。",
+    tags: { strategy: "进取型/重炮手", terrain: "沙坑挑战者", environment: "抗风能力弱", skill: "业余高手" }
+  },
+  { 
+    name: "南京太阳岛", lat: 32.155, lng: 118.785, description: "长江水系附近的平原水景球场，果岭周边障碍清晰，适合稳扎稳打的保帕策略。",
+    tags: { strategy: "稳健型/控球派", terrain: "水障恐慌者", environment: "抗风能力弱", skill: "新手上路" }
+  },
+  { 
+    name: "常熟尚湖", lat: 31.625, lng: 120.695, description: "江南湖区球场，水障和湿地景观多，要求球员合理控制进攻角度与落点。",
+    tags: { strategy: "稳健型/控球派", terrain: "水障恐慌者", environment: "抗风能力弱", skill: "业余高手" }
+  },
+  { 
+    name: "无锡锦园", lat: 31.585, lng: 120.185, description: "太湖周边的园林式球场，球道宽容度适中，适合中差点球友练习稳定节奏。",
+    tags: { strategy: "稳健型/控球派", terrain: "水障恐慌者", environment: "怕热星人", skill: "新手上路" }
+  },
+  { 
+    name: "扬州太阳岛", lat: 32.425, lng: 119.445, description: "运河文化区域内的平原球场，水系穿插但整体节奏温和，适合休闲与练习结合。",
+    tags: { strategy: "稳健型/控球派", terrain: "水障恐慌者", environment: "抗风能力弱", skill: "新手上路" }
+  },
+  { 
+    name: "上海棕榈滩", lat: 30.855, lng: 121.455, description: "临海休闲度假球场，风向变化和沙坑布局会影响进攻选择，适合练习抗风策略。",
+    tags: { strategy: "进取型/重炮手", terrain: "沙坑挑战者", environment: "抗风能力弱", skill: "业余高手" }
+  },
+  { 
+    name: "上海华凯", lat: 31.025, lng: 121.525, description: "上海近郊的平原水景球场，整体难度适中，适合稳定控球派进行节奏训练。",
+    tags: { strategy: "稳健型/控球派", terrain: "水障恐慌者", environment: "抗风能力弱", skill: "新手上路" }
+  },
+  { 
+    name: "青岛国际", lat: 36.155, lng: 120.445, description: "丘陵与海风结合的北方滨海球场，落点和风向判断对成绩影响明显。",
+    tags: { strategy: "稳健型/控球派", terrain: "山地球场爱好者", environment: "抗风能力弱", skill: "业余高手" }
+  },
+  { 
+    name: "烟台南山丹岭", lat: 37.615, lng: 120.455, description: "山东半岛山地与海风交织的综合型球场，长洞和起伏会考验体能与距离控制。",
+    tags: { strategy: "进取型/重炮手", terrain: "山地球场爱好者", environment: "体能充沛", skill: "职业水准" }
+  },
+  { 
+    name: "济南黄金崮云湖", lat: 36.485, lng: 117.025, description: "山谷与湖面相互穿插，视线落差明显，适合喜欢挑战地形和精准攻果岭的球手。",
+    tags: { strategy: "进取型/重炮手", terrain: "山地球场爱好者", environment: "体能充沛", skill: "业余高手" }
+  },
+  { 
+    name: "威海泛华", lat: 37.485, lng: 122.145, description: "海岸丘陵环境明显，风向会左右开球策略，适合抗风能力较强的球友。",
+    tags: { strategy: "稳健型/控球派", terrain: "沙坑挑战者", environment: "抗风能力弱", skill: "业余高手" }
+  },
+  { 
+    name: "北京北辰", lat: 40.015, lng: 116.365, description: "北京近郊城市球场，交通便利，球道相对规整，适合日常练习和轻商务球局。",
+    tags: { strategy: "稳健型/控球派", terrain: "水障恐慌者", environment: "抗风能力弱", skill: "新手上路" }
+  },
+  { 
+    name: "北京金色河畔", lat: 40.105, lng: 116.525, description: "北方平原与水系结合的球场，障碍清晰，适合稳定控球和中短铁练习。",
+    tags: { strategy: "稳健型/控球派", terrain: "水障恐慌者", environment: "抗风能力弱", skill: "新手上路" }
+  },
+  { 
+    name: "天津松江团泊湖", lat: 38.925, lng: 117.115, description: "团泊湖区域的水景球场，风和水障共同影响线路，适合保守策略与落点训练。",
+    tags: { strategy: "稳健型/控球派", terrain: "水障恐慌者", environment: "抗风能力弱", skill: "业余高手" }
+  },
+  { 
+    name: "廊坊艾力枫社", lat: 39.615, lng: 116.675, description: "京津冀近郊球场，球道宽容度较好，但果岭周边处理需要细腻短杆。",
+    tags: { strategy: "稳健型/控球派", terrain: "沙坑挑战者", environment: "抗风能力弱", skill: "新手上路" }
+  },
+  { 
+    name: "石家庄众诚", lat: 38.085, lng: 114.435, description: "华北平原型球场，整体节奏直接，适合练习一号木落点和中铁稳定性。",
+    tags: { strategy: "进取型/重炮手", terrain: "沙坑挑战者", environment: "抗风能力弱", skill: "新手上路" }
+  },
+  { 
+    name: "沈阳世纪", lat: 41.705, lng: 123.555, description: "东北城市近郊球场，球道开阔但季节风明显，适合力量型球手发挥距离优势。",
+    tags: { strategy: "进取型/重炮手", terrain: "沙坑挑战者", environment: "体能充沛", skill: "业余高手" }
+  },
+  { 
+    name: "大连夏丽", lat: 39.015, lng: 121.705, description: "大连近海丘陵球场，海风和起伏地形明显，适合攻守兼备的中高级球员。",
+    tags: { strategy: "稳健型/控球派", terrain: "山地球场爱好者", environment: "抗风能力弱", skill: "业余高手" }
+  },
+  { 
+    name: "长春净月潭", lat: 43.785, lng: 125.455, description: "森林湖区环境清爽，球道被林带包围，适合喜欢安静节奏和精准开球的球手。",
+    tags: { strategy: "稳健型/控球派", terrain: "山地球场爱好者", environment: "怕热星人", skill: "业余高手" }
+  },
+  { 
+    name: "哈尔滨国际", lat: 45.745, lng: 126.785, description: "东北平原型球场，夏季气候舒适，适合避暑打球和稳定控球练习。",
+    tags: { strategy: "稳健型/控球派", terrain: "沙坑挑战者", environment: "怕热星人", skill: "新手上路" }
+  },
+  { 
+    name: "呼和浩特大青山", lat: 40.895, lng: 111.745, description: "草原与山地过渡区域，开阔风场明显，适合练习低弹道与顺逆风距离判断。",
+    tags: { strategy: "进取型/重炮手", terrain: "山地球场爱好者", environment: "抗风能力弱", skill: "业余高手" }
+  },
+  { 
+    name: "鄂尔多斯国际", lat: 39.615, lng: 109.785, description: "西北开阔地貌球场，风大、视野宽，进攻型球员可以发挥距离但需控制弹道。",
+    tags: { strategy: "进取型/重炮手", terrain: "沙坑挑战者", environment: "体能充沛", skill: "业余高手" }
+  },
+  { 
+    name: "银川颐和乡村", lat: 38.455, lng: 106.175, description: "贺兰山脚下的西北球场，气候干燥、风向明显，适合体能充沛的进攻型球手。",
+    tags: { strategy: "进取型/重炮手", terrain: "沙坑挑战者", environment: "体能充沛", skill: "业余高手" }
+  },
+  { 
+    name: "兰州仁寿山", lat: 36.135, lng: 103.765, description: "黄土丘陵与城市山体地形结合，球道落差鲜明，适合喜欢山地线路的球手。",
+    tags: { strategy: "稳健型/控球派", terrain: "山地球场爱好者", environment: "怕热星人", skill: "业余高手" }
+  },
+  { 
+    name: "乌鲁木齐雪莲山", lat: 43.875, lng: 87.475, description: "天山脚下的高海拔球场，空气干爽、距离感变化明显，适合避暑和长杆练习。",
+    tags: { strategy: "进取型/重炮手", terrain: "山地球场爱好者", environment: "怕热星人", skill: "业余高手" }
+  },
+  { 
+    name: "西安亚建", lat: 34.315, lng: 109.045, description: "西安近郊综合型球场，水障和沙坑穿插，适合稳健型球手做线路管理。",
+    tags: { strategy: "稳健型/控球派", terrain: "水障恐慌者", environment: "抗风能力弱", skill: "业余高手" }
+  },
+  { 
+    name: "太原辰憬", lat: 37.775, lng: 112.585, description: "山西丘陵环境下的城市近郊球场，起伏和风向会影响长杆选择。",
+    tags: { strategy: "稳健型/控球派", terrain: "山地球场爱好者", environment: "抗风能力弱", skill: "新手上路" }
+  },
+  { 
+    name: "洛阳伏牛山", lat: 34.595, lng: 112.245, description: "豫西山地气质明显，球道落差和林线会放大方向失误，适合稳健控球打法。",
+    tags: { strategy: "稳健型/控球派", terrain: "山地球场爱好者", environment: "怕热星人", skill: "业余高手" }
+  },
+  { 
+    name: "郑州思念", lat: 34.895, lng: 113.595, description: "郑州近郊水系球场，湖面和沙坑常压缩进攻线路，适合保守落点策略。",
+    tags: { strategy: "稳健型/控球派", terrain: "水障恐慌者", environment: "抗风能力弱", skill: "新手上路" }
+  },
+  { 
+    name: "武汉金银湖", lat: 30.665, lng: 114.185, description: "湖区型球场，水障密集且湿热明显，适合体能充沛且愿意控球的球员。",
+    tags: { strategy: "稳健型/控球派", terrain: "水障恐慌者", environment: "体能充沛", skill: "业余高手" }
+  },
+  { 
+    name: "宜昌三峡", lat: 30.735, lng: 111.335, description: "山水峡谷地貌特色明显，视觉落差大，适合喜欢挑战地形判断的球手。",
+    tags: { strategy: "进取型/重炮手", terrain: "山地球场爱好者", environment: "怕热星人", skill: "业余高手" }
+  },
+  { 
+    name: "长沙龙湖", lat: 28.165, lng: 113.105, description: "城市近郊湖景球场，水系对进攻角度影响明显，适合练习第二杆决策。",
+    tags: { strategy: "稳健型/控球派", terrain: "水障恐慌者", environment: "抗风能力弱", skill: "新手上路" }
+  },
+  { 
+    name: "株洲湘水湾", lat: 27.875, lng: 113.115, description: "湘江流域湿地球场，节奏温和但水障频繁，适合稳定型打法和短杆练习。",
+    tags: { strategy: "稳健型/控球派", terrain: "水障恐慌者", environment: "抗风能力弱", skill: "新手上路" }
+  },
+  { 
+    name: "南昌翠林", lat: 28.625, lng: 115.925, description: "丘陵与林地结合的江西球场，部分球道视线受限，需要明确目标线。",
+    tags: { strategy: "稳健型/控球派", terrain: "山地球场爱好者", environment: "体能充沛", skill: "业余高手" }
+  },
+  { 
+    name: "九江庐山", lat: 29.595, lng: 115.985, description: "庐山周边山地气候清凉，坡度和林线明显，适合避暑和策略型球局。",
+    tags: { strategy: "稳健型/控球派", terrain: "山地球场爱好者", environment: "怕热星人", skill: "业余高手" }
+  },
+  { 
+    name: "成都蓝光观岭", lat: 30.805, lng: 104.315, description: "成都北部生态球场，球道较为友好但湖泊和沙坑会考验攻果岭选择。",
+    tags: { strategy: "稳健型/控球派", terrain: "水障恐慌者", environment: "抗风能力弱", skill: "新手上路" }
+  },
+  { 
+    name: "成都牧马山", lat: 30.455, lng: 103.955, description: "牧马山区域的丘陵球场，起伏和林线明显，适合喜欢立体线路的球手。",
+    tags: { strategy: "进取型/重炮手", terrain: "山地球场爱好者", environment: "体能充沛", skill: "业余高手" }
+  },
+  { 
+    name: "重庆庆隆南山", lat: 29.525, lng: 106.635, description: "重庆山城地形下的立体球场，盲打和落差频繁，适合经验丰富的球手。",
+    tags: { strategy: "稳健型/控球派", terrain: "山地球场爱好者", environment: "体能充沛", skill: "职业水准" }
+  },
+  { 
+    name: "遵义保利", lat: 27.755, lng: 106.945, description: "贵州山地气候凉爽，球道随坡度展开，适合避暑并练习上下坡球位处理。",
+    tags: { strategy: "稳健型/控球派", terrain: "山地球场爱好者", environment: "怕热星人", skill: "业余高手" }
+  },
+  { 
+    name: "昆明滇池卫城", lat: 24.855, lng: 102.675, description: "滇池周边山水景观突出，气候舒适，适合喜欢节奏和观景体验的球手。",
+    tags: { strategy: "稳健型/控球派", terrain: "水障恐慌者", environment: "怕热星人", skill: "新手上路" }
+  },
+  { 
+    name: "曲靖金麟湾", lat: 25.465, lng: 103.785, description: "云南高原型球场，空气清爽，距离感和果岭速度需要重新适应。",
+    tags: { strategy: "进取型/重炮手", terrain: "山地球场爱好者", environment: "怕热星人", skill: "业余高手" }
+  },
+  { 
+    name: "拉萨国际", lat: 29.685, lng: 91.125, description: "高海拔环境下的特殊球场，球飞行距离和体能消耗都明显变化，适合有经验球手尝试。",
+    tags: { strategy: "进取型/重炮手", terrain: "山地球场爱好者", environment: "怕热星人", skill: "职业水准" }
   }
 ];

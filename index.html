@@ -8,7 +8,12 @@
 </head>
 <body>
   <div id="title">中国高尔夫球场地图</div>
-  <div id="hint">🖱 拖拽旋转 &nbsp;|&nbsp; 滚轮缩放 &nbsp;|&nbsp; 点击光点查看详情</div>
+  <div id="app-toolbar">
+    <button id="profile-reset" type="button">重选球风</button>
+    <button id="locate-nearby" type="button">附近球场</button>
+    <button id="overview-open" type="button">中国球场全览</button>
+  </div>
+  <div id="hint">拖拽浏览 &nbsp;|&nbsp; 滚轮缩放 &nbsp;|&nbsp; 点击光点查看详情</div>
 
   <!-- ─── 用户档案初始化弹窗 ──────────────────────── -->
   <div id="profile-modal">
@@ -54,12 +59,61 @@
             <label class="pq-opt"><input type="radio" name="skill" value="职业水准"><span>职业水准</span></label>
           </div>
         </div>
+
+        <div class="pq-extra-grid">
+          <label>
+            <span>平均杆数</span>
+            <select id="profile-score">
+              <option value="未填写">暂不填写</option>
+              <option value="100杆以上">100杆以上</option>
+              <option value="90-100杆">90-100杆</option>
+              <option value="80-90杆">80-90杆</option>
+              <option value="80杆以内">80杆以内</option>
+            </select>
+          </label>
+          <label>
+            <span>开球距离</span>
+            <select id="profile-drive">
+              <option value="未填写">暂不填写</option>
+              <option value="180码以内">180码以内</option>
+              <option value="180-220码">180-220码</option>
+              <option value="220-260码">220-260码</option>
+              <option value="260码以上">260码以上</option>
+            </select>
+          </label>
+          <label>
+            <span>常见失误</span>
+            <select id="profile-miss">
+              <option value="未填写">暂不填写</option>
+              <option value="右曲/右推">右曲/右推</option>
+              <option value="左曲/左拉">左曲/左拉</option>
+              <option value="距离不稳定">距离不稳定</option>
+              <option value="短杆薄弱">短杆薄弱</option>
+              <option value="推杆不稳定">推杆不稳定</option>
+            </select>
+          </label>
+          <label>
+            <span>本次目标</span>
+            <input id="profile-goal" type="text" maxlength="40" placeholder="例如：稳稳破百、少丢球、练短杆">
+          </label>
+        </div>
       </div>
 
       <button id="profile-submit" disabled>生成专属数字球童</button>
       <p id="profile-hint">✨ 球童生成后，系统将为您进行全域扫描。地图上亮起的霓虹光点，即为您匹配度达 65% 及以上的推荐球场。</p>
     </div>
   </div>
+
+  <aside id="list-panel" aria-hidden="true">
+    <div id="list-header">
+      <div>
+        <h2 id="list-title">中国球场全览</h2>
+        <p id="list-subtitle"></p>
+      </div>
+      <button id="list-close" type="button">&times;</button>
+    </div>
+    <div id="list-content"></div>
+  </aside>
 
   <!-- ─── 加载进度条 ──────────────────────────────── -->
   <div id="loading-screen">
@@ -73,7 +127,22 @@
 
   <div id="overlay">
     <div id="model-panel">
+      <div id="model-tools">
+        <button id="model-rotate-toggle" type="button">旋转模式：关</button>
+        <label id="model-speed-control">
+          <span>旋转速度</span>
+          <input id="model-rotate-speed" type="range" min="0" max="1.2" step="0.05" value="0.35">
+        </label>
+      </div>
       <canvas id="model-canvas"></canvas>
+      <div id="photo-detail" aria-hidden="true">
+        <img id="photo-detail-image" alt="球场实景细节" />
+        <div id="photo-detail-caption">
+          <strong id="photo-detail-title"></strong>
+          <span id="photo-detail-meta"></span>
+        </div>
+        <button id="photo-detail-close" type="button">返回 3D</button>
+      </div>
       <div id="model-label"></div>
     </div>
 
@@ -96,6 +165,16 @@
           <div id="bubble-accent"></div>
           <p id="caddy-text"></p>
         </div>
+      </div>
+      <div id="caddy-controls">
+        <div id="caddy-modes">
+          <button class="caddy-mode active" type="button" data-caddy-mode="strategy">球场攻略</button>
+          <button class="caddy-mode" type="button" data-caddy-mode="club">选杆建议</button>
+          <button class="caddy-mode" type="button" data-caddy-mode="training">训练计划</button>
+          <button class="caddy-mode" type="button" data-caddy-mode="routine">赛前清单</button>
+        </div>
+        <textarea id="caddy-note" maxlength="120" placeholder="补充当天风向、身体状态、距离、常见失误等"></textarea>
+        <button id="caddy-ask" type="button">让球童重新分析</button>
       </div>
     </div>
   </div>
