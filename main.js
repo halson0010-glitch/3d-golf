@@ -1,7 +1,6 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { golfLocations } from "./locations.js?v=caddy-panel-fit-20260520";
+import { golfLocations } from "./locations.js?v=lazy-model-load-20260520";
 
 // ─── User Profile ─────────────────────────────────────────
 let userProfile = null;
@@ -2088,7 +2087,16 @@ function showGenericModelMode() {
   courseTerrainGroup.visible = false;
   modelGroup.visible = true;
   modelControls.enabled = true;
-  if (selectedCourseIndex !== null) modelLabel.textContent = `${golfLocations[selectedCourseIndex].name} · 3D 球场模型`;
+  if (selectedCourseIndex !== null) modelLabel.textContent = `${golfLocations[selectedCourseIndex].name} · 准备加载 3D 球场模型`;
+  if (selectedCourseIndex !== null) {
+    loadGolfSceneModel().then((loaded) => {
+      if (selectedCourseIndex === null || modelViewMode !== "model") return;
+      const loc = golfLocations[selectedCourseIndex];
+      modelLabel.textContent = loaded
+        ? `${loc.name} · 3D 球场模型`
+        : `${loc.name} · 3D 模型加载失败，已使用备用地形`;
+    });
+  }
 }
 
 function showEmbeddedAmapMode() {
@@ -2189,55 +2197,105 @@ function createFallbackCourseModel() {
   green.position.set(1.9, -0.19, -0.45);
   green.rotation.y = -0.4;
   modelGroup.add(green);
-
-  loadingText.textContent = "已载入备用地形";
-  loadingPercent.textContent = "100%";
-  loadingScreen.classList.add("fade-out");
-  setTimeout(() => {
-    loadingScreen.style.display = "none";
-  }, 500);
 }
 
 const loadingScreen = document.getElementById("loading-screen");
 const loadingPercent = document.getElementById("loading-percent");
 const loadingText = document.getElementById("loading-text");
 
-const loader = new GLTFLoader();
-loader.load(
-  "./assets/golf_scene.glb",
-  (gltf) => {
-    const box = new THREE.Box3().setFromObject(gltf.scene);
-    const size = box.getSize(new THREE.Vector3());
-    const maxDim = Math.max(size.x, size.y, size.z);
-    const targetSize = 6.0;
-    const scale = targetSize / maxDim;
+let gltfLoaderModulePromise = null;
+let golfModelLoadPromise = null;
+let golfModelLoadState = "idle";
 
-    gltf.scene.scale.setScalar(scale);
-    const center = box.getCenter(new THREE.Vector3());
-    gltf.scene.position.set(-center.x * scale, -center.y * scale + 0.35, -center.z * scale);
+function hideInitialLoadingScreen() {
+  if (!loadingScreen || loadingScreen.classList.contains("fade-out")) return;
+  loadingText.textContent = "地图加载完成";
+  loadingPercent.textContent = "100%";
+  loadingScreen.classList.add("fade-out");
+  setTimeout(() => {
+    loadingScreen.style.display = "none";
+  }, 620);
+}
 
-    modelGroup.add(gltf.scene);
-
-    loadingText.textContent = "加载完成";
-    loadingPercent.textContent = "100%";
-    loadingScreen.classList.add("fade-out");
-    setTimeout(() => {
-      loadingScreen.style.display = "none";
-    }, 700);
-  },
-  (xhr) => {
-    if (xhr.total > 0) {
-      const pct = Math.min(99, Math.round((xhr.loaded / xhr.total) * 100));
-      loadingPercent.textContent = pct + "%";
-    }
-  },
-  () => {
-    console.warn("Golf model failed to load, path:", "./assets/golf_scene.glb");
-    createFallbackCourseModel();
+function clearModelGroupContents() {
+  while (modelGroup.children.length) {
+    const child = modelGroup.children[0];
+    modelGroup.remove(child);
+    disposeObject3D(child);
   }
-);
+}
 
-// ─── Raycaster click interaction ───────────────────────────
+function setModelLoadingLabel(pct) {
+  if (selectedCourseIndex === null || modelViewMode !== "model") return;
+  const loc = golfLocations[selectedCourseIndex];
+  modelLabel.textContent = `${loc.name} · 3D模型加载中 ${pct}%`;
+}
+
+function loadGolfSceneModel() {
+  if (golfModelLoadState === "loaded" || golfModelLoadState === "fallback") {
+    return Promise.resolve(golfModelLoadState === "loaded");
+  }
+  if (golfModelLoadPromise) return golfModelLoadPromise;
+
+  golfModelLoadState = "loading";
+  setModelLoadingLabel(0);
+  gltfLoaderModulePromise ||= import("three/addons/loaders/GLTFLoader.js");
+  golfModelLoadPromise = gltfLoaderModulePromise
+    .then(({ GLTFLoader }) => new Promise((resolve) => {
+      const modelLoader = new GLTFLoader();
+      modelLoader.load(
+        "./assets/golf_scene.glb",
+        (gltf) => {
+          const box = new THREE.Box3().setFromObject(gltf.scene);
+          const size = box.getSize(new THREE.Vector3());
+          const maxDim = Math.max(size.x, size.y, size.z) || 1;
+          const targetSize = 6.0;
+          const scale = targetSize / maxDim;
+
+          gltf.scene.scale.setScalar(scale);
+          const center = box.getCenter(new THREE.Vector3());
+          gltf.scene.position.set(-center.x * scale, -center.y * scale + 0.35, -center.z * scale);
+
+          clearModelGroupContents();
+          modelHasFallback = false;
+          modelGroup.add(gltf.scene);
+          golfModelLoadState = "loaded";
+          resolve(true);
+        },
+        (xhr) => {
+          if (xhr.total > 0) {
+            const pct = Math.min(99, Math.round((xhr.loaded / xhr.total) * 100));
+            setModelLoadingLabel(pct);
+          }
+        },
+        () => {
+          console.warn("Golf model failed to load, path:", "./assets/golf_scene.glb");
+          clearModelGroupContents();
+          modelHasFallback = false;
+          createFallbackCourseModel();
+          golfModelLoadState = "fallback";
+          resolve(false);
+        }
+      );
+    }))
+    .catch(() => {
+      clearModelGroupContents();
+      modelHasFallback = false;
+      createFallbackCourseModel();
+      golfModelLoadState = "fallback";
+      return false;
+    })
+    .finally(() => {
+      golfModelLoadPromise = null;
+    });
+
+  return golfModelLoadPromise;
+}
+
+requestAnimationFrame(() => {
+  setTimeout(hideInitialLoadingScreen, isCompactViewport() ? 260 : 380);
+});
+
 const raycaster = new THREE.Raycaster();
 raycaster.params.Points.threshold = 0.02;
 const mouse = new THREE.Vector2();

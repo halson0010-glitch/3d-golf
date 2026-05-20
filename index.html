@@ -4,7 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>中国高尔夫地图</title>
-  <link rel="stylesheet" href="./style.css?v=caddy-panel-fit-20260520">
+  <link rel="preconnect" href="https://unpkg.com" crossorigin>
+  <link rel="dns-prefetch" href="//unpkg.com">
+  <link rel="dns-prefetch" href="//threejs.org">
+  <link rel="dns-prefetch" href="//webst01.is.autonavi.com">
+  <link rel="dns-prefetch" href="//webrd01.is.autonavi.com">
+  <link rel="stylesheet" href="./style.css?v=lazy-model-load-20260520">
 </head>
 <body>
   <div id="title">中国高尔夫球场地图</div>
@@ -123,8 +128,8 @@
     <div id="loading-content">
       <div id="loading-icon">⛳️</div>
       <div id="loading-ring"></div>
-      <p id="loading-text">模型加载中...</p>
-      <p id="loading-percent">0%</p>
+      <p id="loading-text">地图加载中...</p>
+      <p id="loading-percent">请稍候</p>
     </div>
   </div>
 
@@ -246,6 +251,6 @@
       amapSecurityJsCode: ""
     };
   </script>
-  <script type="module" src="./main.js?v=caddy-panel-fit-20260520"></script>
+  <script type="module" src="./main.js?v=lazy-model-load-20260520"></script>
 </body>
 </html>
