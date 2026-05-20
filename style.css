@@ -496,8 +496,8 @@ body.overlay-open #hint {
   display: none;
   align-items: center;
   justify-content: center;
-  gap: clamp(16px, 3vw, 40px);
-  padding: env(safe-area-inset-top, 0px) clamp(12px, 3vw, 40px) env(safe-area-inset-bottom, 0px);
+  gap: clamp(18px, 3vw, 56px);
+  padding: max(env(safe-area-inset-top, 0px), 24px) clamp(12px, 3vw, 40px) max(env(safe-area-inset-bottom, 0px), 24px);
   pointer-events: none;
 }
 
@@ -508,10 +508,10 @@ body.overlay-open #hint {
 
 /* ─── Left: 3D Model Panel ──────────────────── */
 #model-panel {
-  width: min(620px, 52vw);
-  height: 520px;
+  width: min(900px, 56vw);
+  height: min(780px, calc(100dvh - 64px));
   flex-shrink: 1;
-  min-width: 320px;
+  min-width: 460px;
   padding: 10px 10px 0;
   display: flex;
   flex-direction: column;
@@ -733,13 +733,13 @@ body.overlay-open #hint {
 
 /* ─── Right: Info Card ──────────────────────── */
 #card {
-  width: min(420px, 35vw);
-  height: 520px;
+  width: min(620px, 38vw);
+  height: min(780px, calc(100dvh - 64px));
   flex-shrink: 1;
-  min-width: 280px;
+  min-width: 440px;
   display: flex;
   flex-direction: column;
-  padding: 24px 24px 20px;
+  padding: 30px 28px 24px;
   background: rgba(12, 18, 28, 0.72);
   backdrop-filter: blur(20px) saturate(140%);
   -webkit-backdrop-filter: blur(20px) saturate(140%);
@@ -752,6 +752,7 @@ body.overlay-open #hint {
   pointer-events: auto;
   animation: panelIn 0.4s ease-out 0.05s both;
   position: relative;
+  overflow: hidden;
 }
 
 @keyframes panelIn {
@@ -806,7 +807,7 @@ body.overlay-open #hint {
 }
 
 #card-title {
-  font-size: 20px;
+  font-size: 24px;
   font-weight: 700;
   letter-spacing: 2px;
   margin-bottom: 10px;
@@ -821,7 +822,7 @@ body.overlay-open #hint {
   line-height: 1.7;
   color: rgba(200, 210, 225, 0.7);
   letter-spacing: 0.8px;
-  max-height: 126px;
+  max-height: 128px;
   overflow-y: auto;
 }
 
@@ -880,7 +881,7 @@ body.overlay-open #hint {
 }
 
 #course-tab-panel {
-  min-height: 72px;
+  min-height: 100px;
   margin-top: 10px;
   padding: 10px 11px;
   border: 1px solid rgba(120, 200, 255, 0.12);
@@ -955,12 +956,13 @@ body.overlay-open #hint {
 
 /* ─── Caddy HUD ─────────────────────────────── */
 #sb-caddy {
-  flex: 0 0 auto;
-  min-height: 112px;
+  flex: 1 1 220px;
+  min-height: 0;
   display: flex;
   align-items: flex-start;
   position: relative;
-  padding: 4px 0;
+  padding: 12px 0 4px;
+  overflow: hidden;
 }
 
 /* Avatar with rotating ring */
@@ -968,10 +970,10 @@ body.overlay-open #hint {
   position: relative;
   z-index: 2;
   flex-shrink: 0;
-  width: 92px;
-  height: 92px;
+  width: 112px;
+  height: 112px;
   margin-right: -28px;
-  margin-top: 18px;
+  margin-top: 22px;
   border-radius: 50%;
 }
 
@@ -1010,10 +1012,10 @@ body.overlay-open #hint {
 
 /* Bubble */
 #caddy-bubble {
-  flex: 1;
+  flex: 1 1 auto;
   z-index: 1;
   position: relative;
-  padding: 20px 18px 18px 42px;
+  padding: 24px 22px 22px 48px;
   background: rgba(18, 30, 50, 0.45);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
@@ -1021,11 +1023,12 @@ body.overlay-open #hint {
   border-left: none;
   border-radius: 0 12px 12px 0;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-  min-height: 104px;
-  max-height: 190px;
+  min-height: 0;
+  max-height: none;
   overflow-y: auto;
   display: flex;
   align-items: flex-start;
+  align-self: stretch;
   scroll-padding-top: 18px;
   overscroll-behavior: contain;
 }
@@ -1049,8 +1052,8 @@ body.overlay-open #hint {
 
 #caddy-text {
   display: block;
-  font-size: 14px;
-  line-height: 1.7;
+  font-size: 15px;
+  line-height: 1.76;
   color: #b8e8f8;
   letter-spacing: 0.8px;
   margin: 0;
@@ -1062,7 +1065,7 @@ body.overlay-open #hint {
 
 #caddy-controls {
   flex-shrink: 0;
-  margin-top: 14px;
+  margin-top: 12px;
 }
 
 #caddy-modes {

@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { golfLocations } from "./locations.js?v=mobile-course-map-fix-20260520";
+import { golfLocations } from "./locations.js?v=caddy-panel-fit-20260520";
 
 // ─── User Profile ─────────────────────────────────────────
 let userProfile = null;
