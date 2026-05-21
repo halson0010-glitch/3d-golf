@@ -1,6 +1,14 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { golfLocations } from "./locations.js?v=lazy-model-load-20260520";
+import { golfLocations } from "./locations.js?v=pages-stability-20260521";
+
+function reportPageResourceIssue(title, message, options = {}) {
+  if (typeof window.showPageError === "function") {
+    window.showPageError(title, message, options);
+  } else {
+    console.warn(title, message);
+  }
+}
 
 // ─── User Profile ─────────────────────────────────────────
 let userProfile = null;
@@ -412,6 +420,10 @@ function createEarth() {
     () => {
       mat.color.set(0x2255aa);
       mat.needsUpdate = true;
+      reportPageResourceIssue(
+        "地球贴图加载失败",
+        "地球纹理没有成功加载，已自动切换为基础蓝色地球。请检查网络是否能访问 threejs.org。"
+      );
     }
   );
 
@@ -1902,6 +1914,10 @@ async function updateCourseTerrainView(index) {
     modelLabel.textContent = `${loc.name} · 实景卫星 2.5D 地形`;
   } catch {
     if (token !== terrainLoadToken) return;
+    reportPageResourceIssue(
+      "实景地形贴图加载失败",
+      "高德瓦片或球场地形贴图没有成功加载，已自动切换为备用 3D 地形。请检查网络和地图瓦片访问情况。"
+    );
     clearCourseTerrainGroup();
     createFallbackCourseModel();
     modelGroup.visible = true;
@@ -2270,6 +2286,10 @@ function loadGolfSceneModel() {
         },
         () => {
           console.warn("Golf model failed to load, path:", "./assets/golf_scene.glb");
+          reportPageResourceIssue(
+            "球场 3D 模型加载失败",
+            "资源 ./assets/golf_scene.glb 没有成功加载，已自动切换为备用地形。请确认大模型文件已上传，且 GitHub Pages 没有被网络中断。"
+          );
           clearModelGroupContents();
           modelHasFallback = false;
           createFallbackCourseModel();
@@ -2279,6 +2299,10 @@ function loadGolfSceneModel() {
       );
     }))
     .catch(() => {
+      reportPageResourceIssue(
+        "球场 3D 模型加载失败",
+        "Three.js 的 GLTFLoader 或 ./assets/golf_scene.glb 加载失败，已使用备用地形展示。"
+      );
       clearModelGroupContents();
       modelHasFallback = false;
       createFallbackCourseModel();
@@ -2327,6 +2351,7 @@ const modelLabel = document.getElementById("model-label");
 const caddyModeButtons = document.querySelectorAll(".caddy-mode");
 const caddyNote = document.getElementById("caddy-note");
 const caddyAsk = document.getElementById("caddy-ask");
+const caddyAvatarImage = document.querySelector("#caddy-avatar img");
 let selectedCourseIndex = null;
 let selectedCaddyMode = "strategy";
 let photoDetailVisible = false;
@@ -2334,6 +2359,13 @@ let realViewDragging = false;
 let realViewStartX = 0;
 let realViewStartYaw = 0;
 let realViewYaw = 0;
+
+caddyAvatarImage?.addEventListener("error", () => {
+  reportPageResourceIssue(
+    "数字球童头像加载失败",
+    "资源 ./assets/caddy_photo.png 没有成功加载。请确认 assets/caddy_photo.png 已上传到 GitHub Pages。"
+  );
+});
 
 modelTerrainToggle?.addEventListener("click", showCourseTerrainMode);
 modelGenericToggle?.addEventListener("click", showGenericModelMode);
@@ -2784,6 +2816,13 @@ photoDetailVideo.addEventListener("pointerleave", () => {
 
 photoDetailVideo.addEventListener("error", () => {
   photoDetailVideo.style.display = "none";
+  if (photoDetailVisible) {
+    const src = selectedCourseIndex === null ? "" : getCourseVideoSrc(selectedCourseIndex);
+    reportPageResourceIssue(
+      "实景视频加载失败",
+      `视频资源 ${src || "./assets/course_realview_*.mp4"} 没有成功加载。请确认对应 mp4 文件已上传到 assets 目录。`
+    );
+  }
 });
 
 renderer.domElement.addEventListener("pointerdown", (e) => {

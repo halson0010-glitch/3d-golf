@@ -9,7 +9,7 @@
   <link rel="dns-prefetch" href="//threejs.org">
   <link rel="dns-prefetch" href="//webst01.is.autonavi.com">
   <link rel="dns-prefetch" href="//webrd01.is.autonavi.com">
-  <link rel="stylesheet" href="./style.css?v=lazy-model-load-20260520">
+  <link rel="stylesheet" href="./style.css?v=pages-stability-20260521">
 </head>
 <body>
   <div id="title">中国高尔夫球场地图</div>
@@ -21,6 +21,16 @@
   <div id="hint">拖拽浏览 &nbsp;|&nbsp; 滚轮缩放 &nbsp;|&nbsp; 点击光点查看详情</div>
   <div id="transition-mask">
     <div id="transition-copy">正在进入球场</div>
+  </div>
+  <div id="page-error-layer" class="hidden" role="alert" aria-live="assertive">
+    <div id="page-error-panel">
+      <strong id="page-error-title">页面资源加载异常</strong>
+      <p id="page-error-message">部分资源加载失败，请检查网络后重试。</p>
+      <div id="page-error-actions">
+        <button id="page-error-reload" type="button">重新加载</button>
+        <button id="page-error-close" type="button">继续浏览</button>
+      </div>
+    </div>
   </div>
 
   <!-- ─── 用户档案初始化弹窗 ──────────────────────── -->
@@ -245,12 +255,60 @@
   }
   </script>
   <script>
+    (function () {
+      const layerId = "page-error-layer";
+      window.showPageError = function (title, message, options = {}) {
+        const layer = document.getElementById(layerId);
+        const titleEl = document.getElementById("page-error-title");
+        const messageEl = document.getElementById("page-error-message");
+        if (!layer || !titleEl || !messageEl) {
+          console.error(title, message);
+          return;
+        }
+        titleEl.textContent = title || "页面资源加载异常";
+        messageEl.textContent = message || "部分资源加载失败，请检查网络后重试。";
+        layer.classList.remove("hidden");
+        layer.classList.toggle("fatal", Boolean(options.fatal));
+      };
+
+      window.addEventListener("error", (event) => {
+        const target = event.target;
+        if (target && target !== window && ["SCRIPT", "LINK", "IMG", "VIDEO"].includes(target.tagName)) {
+          const url = target.currentSrc || target.href || target.src || "未知资源";
+          window.showPageError("静态资源加载失败", `资源没有成功加载：${url}。如果在线上访问，请确认 GitHub Pages 已部署完整 assets 目录。`);
+        }
+      }, true);
+
+      window.addEventListener("unhandledrejection", (event) => {
+        const reason = String(event.reason?.message || event.reason || "");
+        if (reason.includes("Failed to fetch dynamically imported module") || reason.includes("Importing a module script failed")) {
+          window.showPageError("Three.js 或主程序加载失败", "页面主模块没有成功加载。请检查网络是否能访问 unpkg.com，或稍后刷新 GitHub Pages 页面。", { fatal: true });
+        }
+      });
+
+      document.addEventListener("DOMContentLoaded", () => {
+        document.getElementById("page-error-reload")?.addEventListener("click", () => window.location.reload());
+        document.getElementById("page-error-close")?.addEventListener("click", () => {
+          document.getElementById(layerId)?.classList.add("hidden");
+        });
+      });
+    })();
+
     window.GOLF_MAP_CONFIG = {
       mapTileProvider: "amapSatellite",
       amapKey: "",
       amapSecurityJsCode: ""
     };
   </script>
-  <script type="module" src="./main.js?v=lazy-model-load-20260520"></script>
+  <script type="module">
+    import("./main.js?v=pages-stability-20260521").catch((error) => {
+      console.error(error);
+      window.showPageError?.(
+        "Three.js 或主程序加载失败",
+        "页面依赖 Three.js CDN 和本地 main.js。请确认网络可访问 unpkg.com，并确认 GitHub Pages 已上传 index.html、main.js、locations.js、style.css 和 assets 目录。",
+        { fatal: true }
+      );
+    });
+  </script>
 </body>
 </html>
