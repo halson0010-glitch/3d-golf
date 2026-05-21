@@ -1359,13 +1359,13 @@ body.overlay-open #hint {
 
 /* ─── Caddy HUD ─────────────────────────────── */
 #sb-caddy {
-  flex: 1 1 220px;
-  min-height: 0;
+  flex: 0 0 clamp(180px, 24dvh, 260px);
+  min-height: 180px;
   display: flex;
   align-items: flex-start;
   position: relative;
   padding: 12px 0 4px;
-  overflow: hidden;
+  overflow: visible;
 }
 
 /* Avatar with rotating ring */
@@ -1426,8 +1426,8 @@ body.overlay-open #hint {
   border-left: none;
   border-radius: 0 12px 12px 0;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-  min-height: 0;
-  max-height: none;
+  min-height: 100%;
+  max-height: 100%;
   overflow-y: auto;
   display: flex;
   align-items: flex-start;
@@ -1455,6 +1455,9 @@ body.overlay-open #hint {
 
 #caddy-text {
   display: block;
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
   font-size: 15px;
   line-height: 1.76;
   color: #b8e8f8;

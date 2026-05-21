@@ -3746,7 +3746,9 @@ export function initGolfApp(moduleRegistry = {}) {
 
   function scrollCaddyResultIntoView() {
     if (!cardPanel || !caddyBubble) return;
-    const targetTop = Math.max(0, caddyBubble.offsetTop - 18);
+    const cardRect = cardPanel.getBoundingClientRect();
+    const bubbleRect = caddyBubble.getBoundingClientRect();
+    const targetTop = Math.max(0, cardPanel.scrollTop + bubbleRect.top - cardRect.top - 18);
     cardPanel.scrollTo({
       top: targetTop,
       behavior: prefersReducedMotion ? "auto" : "smooth",
