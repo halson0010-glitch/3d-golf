@@ -1,7 +1,9 @@
 // 应用编排模块：承载现有 3D 高尔夫地图运行逻辑，保持功能和 UI 表现不变。
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { golfLocations } from "../locations.js?v=modular-main-20260521";
+import { appConfig } from "../config.js";
+import { golfLocations } from "../locations.js?v=marker-weather-20260521";
+import { getCourseWeather, getWeatherModeLabel } from "./weather.js";
 
 export function initGolfApp(moduleRegistry = {}) {
   window.__golfModuleRegistry = moduleRegistry;
@@ -28,6 +30,21 @@ export function initGolfApp(moduleRegistry = {}) {
   const listSubtitle = document.getElementById("list-subtitle");
   const listContent = document.getElementById("list-content");
   const listClose = document.getElementById("list-close");
+  const listTools = document.getElementById("list-tools");
+  const listSearch = document.getElementById("list-search");
+  const listProvinceFilter = document.getElementById("list-province-filter");
+  const listTypeFilter = document.getElementById("list-type-filter");
+  const listDifficultyFilter = document.getElementById("list-difficulty-filter");
+  const listSortFilter = document.getElementById("list-sort-filter");
+  const listSuitableFilter = document.getElementById("list-suitable-filter");
+  const listVideoFilter = document.getElementById("list-video-filter");
+  const listModelFilter = document.getElementById("list-model-filter");
+  const listFilterNote = document.getElementById("list-filter-note");
+  const listNearbyTools = document.getElementById("list-nearby-tools");
+  const nearbyStatus = document.getElementById("nearby-status");
+  const nearbyCount = document.getElementById("nearby-count");
+  const nearbyDistance = document.getElementById("nearby-distance");
+  const nearbyCitySelect = document.getElementById("nearby-city-select");
   const profileScore = document.getElementById("profile-score");
   const profileDrive = document.getElementById("profile-drive");
   const profileMiss = document.getElementById("profile-miss");
@@ -42,9 +59,45 @@ export function initGolfApp(moduleRegistry = {}) {
   const mapProviderTools = document.getElementById("map-provider-tools");
   const radioGroups = ["strategy", "terrain", "environment", "skill"];
   let userLocation = null;
+  let userLocationSource = "";
+  let selectedCourseIndex = null;
+  const NEARBY_CITY_STORAGE_KEY = "golf-nearby-city";
+  const CADDY_BAG_STORAGE_KEY = "golf-caddy-bag-v1";
+  const NEARBY_CITIES = [
+    { name: "北京", lat: 39.9042, lng: 116.4074 },
+    { name: "上海", lat: 31.2304, lng: 121.4737 },
+    { name: "广州", lat: 23.1291, lng: 113.2644 },
+    { name: "深圳", lat: 22.5431, lng: 114.0579 },
+    { name: "重庆", lat: 29.563, lng: 106.5516 },
+    { name: "成都", lat: 30.5728, lng: 104.0668 },
+    { name: "杭州", lat: 30.2741, lng: 120.1551 },
+    { name: "西安", lat: 34.3416, lng: 108.9398 },
+    { name: "海口", lat: 20.0442, lng: 110.1999 },
+    { name: "三亚", lat: 18.2528, lng: 109.5119 },
+    { name: "昆明", lat: 25.0389, lng: 102.7183 },
+  ];
+  const courseLibraryState = {
+    mode: "overview",
+    query: "",
+    province: "all",
+    courseType: "all",
+    difficulty: "all",
+    suitableOnly: false,
+    videoOnly: false,
+    modelOnly: false,
+    nearbyRange: "300",
+    sort: "recommend",
+  };
   const isTouchDevice = "ontouchstart" in window || navigator.maxTouchPoints > 0;
   const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const isCompactViewport = () => window.matchMedia("(max-width: 768px)").matches || isTouchDevice;
+  const isLowPowerDevice = () => (
+    isCompactViewport()
+    || (navigator.deviceMemory && navigator.deviceMemory <= 4)
+    || (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4)
+  );
+  const getScenePixelRatio = () => Math.min(window.devicePixelRatio || 1, isLowPowerDevice() ? 1.35 : 2);
+  const getModelPixelRatio = () => Math.min(window.devicePixelRatio || 1, isLowPowerDevice() ? 1.25 : 2);
   let viewMode = "globe";
   let isTransitioning = false;
   let transitionTimer = null;
@@ -112,6 +165,7 @@ export function initGolfApp(moduleRegistry = {}) {
   
   profileSubmit.addEventListener("click", () => {
     userProfile = collectProfile();
+    hydrateCaddyBagInputs();
     profileModal.classList.add("hidden");
     scanAllCourses();
     if (userLocation) renderCourseList("nearby");
@@ -123,6 +177,15 @@ export function initGolfApp(moduleRegistry = {}) {
   
   // ─── Matching Engine v3.0 ───────────────────────────────────
   const LEVEL_MAP = { "新手上路": 1, "业余高手": 2, "职业水准": 3 };
+  const COURSE_DIFFICULTY_MAP = {
+    "新手友好": 1,
+    "中等": 2,
+    "挑战": 3,
+    "锦标赛": 4,
+    "新手上路": 1,
+    "业余高手": 2,
+    "职业水准": 3,
+  };
   
   function calculateMatch(user, course) {
     const t = course.tags;
@@ -193,65 +256,335 @@ export function initGolfApp(moduleRegistry = {}) {
     if (parts.length === 0) return "综合";
     return parts.join("和");
   }
+
+  const CADDY_MODE_CONFIG = {
+    strategy: {
+      label: "球场攻略",
+      task: "路线管理、保守/进攻策略、风险区提醒",
+      actionTitle: "路线打法",
+    },
+    club: {
+      label: "选杆建议",
+      task: "基于开球距离、常见失误、球场类型给出一号木、木杆、铁杆和挖起杆策略",
+      actionTitle: "选杆策略",
+    },
+    fix: {
+      label: "失误修正",
+      task: "根据右曲、左拉、短杆薄弱、推杆不稳等常见失误给出本场修正建议",
+      actionTitle: "修正动作",
+    },
+    routine: {
+      label: "赛前清单",
+      task: "热身、补水、防晒、球具检查、练习果岭和节奏管理",
+      actionTitle: "赛前清单",
+    },
+    training: {
+      label: "训练计划",
+      task: "赛前 30 分钟、赛前 7 天、长期训练建议",
+      actionTitle: "训练安排",
+    },
+    mental: {
+      label: "心理球童",
+      task: "落后、连续失误、关键洞前如何调整心态和节奏",
+      actionTitle: "心理节奏",
+    },
+    bag: {
+      label: "球包配置",
+      task: "让用户填写常用球杆，按球杆距离给出本场球包和落点建议",
+      actionTitle: "球包策略",
+    },
+  };
+
+  function buildCaddySections({ judgment, action, risk, next }) {
+    return [
+      `【判断】${judgment}`,
+      `【执行】${action}`,
+      `【风险】${risk}`,
+      `【下一步】${next}`,
+    ].join("\n");
+  }
+
+  function getCaddyContext(loc, note = "") {
+    const match = calculateMatch(userProfile, loc);
+    const distance = formatDistance(getCourseDistance(loc));
+    const hazardsText = formatList(loc.hazards);
+    const bestForText = formatList(loc.bestFor);
+    const miss = userProfile.missTendency !== "未填写" ? userProfile.missTendency : "主要失误";
+    const drive = userProfile.driveDistance !== "未填写" ? userProfile.driveDistance : "常规开球距离";
+    const score = userProfile.scoreRange !== "未填写" ? userProfile.scoreRange : "未填写";
+    const goal = userProfile.goal !== "未填写" ? userProfile.goal : "稳定完赛";
+    const weatherText = getWeatherAdviceText();
+    const bagProfile = getCaddyBagProfile();
+    const noteText = note ? `现场补充：${note}。` : "";
+    return {
+      match,
+      pct: match.finalScore,
+      distance,
+      distanceText: distance ? `距离你约 ${distance}，` : "",
+      hazardsText,
+      bestForText,
+      miss,
+      drive,
+      score,
+      goal,
+      weatherText,
+      bagText: bagProfile.text,
+      bagSaved: bagProfile.saved,
+      bagData: bagProfile.data,
+      noteText,
+      courseType: loc.courseType || loc.tags.terrain,
+      difficulty: loc.difficulty || loc.tags.skill,
+      greenSpeedText: loc.greenSpeed && loc.greenSpeed !== "待确认" ? `果岭速度 ${loc.greenSpeed}` : "果岭速度待确认",
+    };
+  }
+
+  const BAG_CLUB_LABELS = {
+    driver: "Driver",
+    wood3: "3W",
+    wood5: "5W",
+    hybrid: "Hybrid",
+    i5: "5i",
+    i6: "6i",
+    i7: "7i",
+    i8: "8i",
+    i9: "9i",
+    pw: "PW",
+    aw: "AW",
+    sw: "SW",
+    putter: "Putter",
+  };
+
+  function getEstimatedDriverDistance() {
+    const drive = userProfile?.driveDistance || "未填写";
+    if (drive.includes("180码以内")) return 170;
+    if (drive.includes("180-220")) return 200;
+    if (drive.includes("220-260")) return 240;
+    if (drive.includes("260")) return 275;
+    return 220;
+  }
+
+  function estimateGolfBagFromDrive() {
+    const driver = getEstimatedDriverDistance();
+    const clampYard = (value) => Math.max(25, Math.round(value));
+    return {
+      driver,
+      wood3: clampYard(driver - 25),
+      wood5: clampYard(driver - 40),
+      hybrid: clampYard(driver - 55),
+      i5: clampYard(driver - 70),
+      i6: clampYard(driver - 82),
+      i7: clampYard(driver - 95),
+      i8: clampYard(driver - 108),
+      i9: clampYard(driver - 120),
+      pw: clampYard(driver - 135),
+      aw: clampYard(driver - 150),
+      sw: clampYard(driver - 168),
+      putter: "",
+    };
+  }
+
+  function readSavedCaddyBag() {
+    try {
+      const raw = localStorage.getItem(CADDY_BAG_STORAGE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === "object" ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function normalizeBagData(data = {}) {
+    return Object.fromEntries(Object.keys(BAG_CLUB_LABELS).map((key) => {
+      const value = data[key];
+      if (key === "putter") return [key, typeof value === "string" ? value.trim() : ""];
+      const number = Number(value);
+      return [key, Number.isFinite(number) && number > 0 ? Math.round(number) : ""];
+    }));
+  }
+
+  function hasCaddyBagValues(data) {
+    return Object.entries(data || {}).some(([key, value]) => key === "putter" ? Boolean(value) : Number(value) > 0);
+  }
+
+  function getCurrentBagInputData() {
+    const data = {};
+    caddyBagInputs.forEach((input) => {
+      const key = input.dataset.bagClub;
+      data[key] = key === "putter" ? input.value.trim() : input.value;
+    });
+    return normalizeBagData(data);
+  }
+
+  function formatGolfBag(data, { estimated = false } = {}) {
+    const normalized = normalizeBagData(data);
+    const order = ["driver", "wood3", "wood5", "hybrid", "i5", "i6", "i7", "i8", "i9", "pw", "aw", "sw", "putter"];
+    const parts = order.map((key) => {
+      const value = normalized[key];
+      if (!value) return null;
+      return key === "putter" ? `${BAG_CLUB_LABELS[key]}：${value}` : `${BAG_CLUB_LABELS[key]} ${value}码`;
+    }).filter(Boolean);
+    if (!parts.length) return "";
+    return `${estimated ? "默认估算：" : ""}${parts.join("，")}`;
+  }
+
+  function getCaddyBagProfile() {
+    const current = getCurrentBagInputData();
+    if (hasCaddyBagValues(current)) {
+      const savedBag = normalizeBagData(readSavedCaddyBag() || {});
+      const saved = hasCaddyBagValues(savedBag) && JSON.stringify(savedBag) === JSON.stringify(current);
+      return { saved, data: current, text: formatGolfBag(current) };
+    }
+    const estimated = estimateGolfBagFromDrive();
+    return { saved: false, data: estimated, text: formatGolfBag(estimated, { estimated: true }) };
+  }
   
   // ─── Dialogue Decision Tree v3.0 ────────────────────────────
   function getCaddyAdvice(loc, mode = "strategy", note = "") {
     if (!userProfile) return "请先完成您的专属高尔夫档案，我将为您提供个性化建议~";
-  
-    const m = calculateMatch(userProfile, loc);
-    const pct = m.finalScore;
-    const distance = formatDistance(getCourseDistance(loc));
-    const distanceText = distance ? `距离你约 ${distance}，` : "";
-    const miss = userProfile.missTendency !== "未填写" ? userProfile.missTendency : "主要失误";
-    const drive = userProfile.driveDistance !== "未填写" ? userProfile.driveDistance : "常规开球距离";
-    const goal = userProfile.goal !== "未填写" ? userProfile.goal : "稳定完赛";
-    const noteText = note ? `你补充的现场信息是：${note}。` : "";
-  
-    if (m.isHighRisk) {
-      return `风险提醒：${distanceText}${loc.name} 标定为「${m.t.skill}」，高于你当前「${userProfile.skill}」档案。建议优先选择保守落点，开球避免硬拼距离，短杆和补救杆要提前预留容错。${noteText}匹配度：${pct}%`;
-    }
-  
+
+    const c = getCaddyContext(loc, note);
+    const highRiskPrefix = c.match.isHighRisk ? `难度「${c.difficulty}」高于你的「${userProfile.skill}」，先按保守策略处理。` : "";
+    const weather = c.weatherText ? ` ${c.weatherText}` : "";
+
     if (mode === "club") {
-      return `选杆建议：你的开球档案是「${drive}」，在「${loc.tags.terrain}」球场不必每洞都追求一号木满挥。长洞先找安全球道，遇到水障或沙坑密集区域，用更稳定的球杆把球放到可攻果岭距离。${noteText}匹配度：${pct}%`;
+      const clubAction = c.bagSaved
+        ? `按你的已保存球包距离「${c.bagText}」分三档执行：Driver/3W 只用于宽落点，Hybrid/长铁负责安全推进，PW/AW/SW 留完整挥杆距离攻果岭。`
+        : `先按开球档案估算球包「${c.bagText}」执行：Driver 控制开球，木杆/Hybrid 做推进，7i-PW 找标准落点，AW/SW 负责避开短边。保存真实球包后会按你的码数细化。`;
+      return buildCaddySections({
+        judgment: `${c.distanceText}${loc.name} 是「${c.courseType}」球场，主要障碍是${c.hazardsText}。你的开球档案为「${c.drive}」，不需要每洞硬上一号木。`,
+        action: clubAction,
+        risk: `${c.miss} 是本场主要变量，遇到${c.hazardsText}时宁可少打 15-25 码，也不要追求旗杆方向。${weather}${c.noteText}`,
+        next: c.bagSaved ? "已读取已保存球包；如果当天状态有变化，只调整 8 成力量的可重复距离。" : "这是按开球距离生成的估算球包。保存“我的球包”后，我会按真实码数细化选杆。",
+      });
     }
-  
+
+    if (mode === "fix") {
+      return buildCaddySections({
+        judgment: `本场匹配度 ${c.pct}%。你的常见失误是「${c.miss}」，在「${c.courseType}」和${c.hazardsText}组合下，失误修正比进攻更重要。`,
+        action: c.miss.includes("右") ? "开球前把目标线放到球道左中，握杆压力降到 6 成，收杆保持完整，避免只用手臂抢下杆。" : c.miss.includes("左") ? "目标线放到球道右中，转身到位后再释放杆头，避免上半身过快关闭杆面。" : c.miss.includes("短杆") ? "50 码内只保留两种落点：果岭前沿和旗杆短侧安全区，用肩膀节奏控制距离。" : "每杆只盯一个任务：开球找球道、第二杆找安全区、短杆找落点，不同时修三个问题。",
+        risk: `${highRiskPrefix}${weather}连续失误后不要立刻加力，下一杆先用你最熟的球杆把球放回可控区域。${c.noteText}`,
+        next: "本轮只记录一种失误触发点：站位、节奏或选杆。赛后再决定是否改动作。",
+      });
+    }
+
     if (mode === "training") {
-      return `训练计划：围绕「${goal}」，赛前重点练三项：开球落点控制、${miss}修正、50码内短杆落点。这个球场的核心标签是「${describeMatches(m)}」，练习时把安全区和惩罚区想清楚，比单纯追距离更有价值。`;
+      return buildCaddySections({
+        judgment: `围绕「${c.goal}」，这座球场适合「${c.bestForText}」。训练重点不是多打球，而是把${c.hazardsText}前的决策练熟。`,
+        action: `赛前 30 分钟：10 分钟热身、10 分钟开球落点、10 分钟 50-100 码。赛前 7 天：两次短杆距离控制，一次开球方向控制。长期：把${c.miss}作为主课题。`,
+        risk: `${weather}不要赛前临时改大动作；当天只调整目标线、节奏和选杆。${c.noteText}`,
+        next: "把练习结果转成 3 条比赛规则：保守开球线、标准攻果岭距离、短杆最低可接受落点。",
+      });
     }
-  
+
     if (mode === "routine") {
-      return `赛前清单：确认天气和风向，热身顺序从肩背、髋部到半挥杆；前3洞按七成力量进入节奏。你当前目标是「${goal}」，所以第一优先级是少丢球，其次才是进攻旗杆。${distanceText}建议提前预留交通和练习果岭时间。`;
+      return buildCaddySections({
+        judgment: `${c.distanceText}目标是「${c.goal}」，本场难度「${c.difficulty}」，需要把体能和节奏提前安排好。`,
+        action: `热身顺序：肩背和髋部 5 分钟、半挥杆 10 球、开球 6 球、练习果岭上坡/下坡各 6 球。球具检查：球、手套、鞋钉、毛巾、补水、防晒。`,
+        risk: `${weather}${c.greenSpeedText}。前 3 洞不要追旗，先建立当天距离感。${c.noteText}`,
+        next: "开球前做同一套例行程序：看风险、定落点、选保守杆、一次试挥、执行。",
+      });
     }
-  
-    if (pct >= 85) {
-      return `球场攻略：${distanceText}这里的「${m.t.terrain}」和你的档案高度契合。开局可以积极一些，但每次进攻前先确认落点后的第二杆角度；如果出现${miss}，立即切换到保守线，避免连续丢杆。匹配度：${pct}%`;
+
+    if (mode === "mental") {
+      return buildCaddySections({
+        judgment: `你的目标是「${c.goal}」，在${loc.name}这类「${c.courseType}」球场，心理上最怕把一个失误扩大成两洞连锁。`,
+        action: `落后时只看下一杆落点；连续失误后强制换成 80% 力量；关键洞前先说出“安全区在哪里”，再决定是否进攻。`,
+        risk: `${highRiskPrefix}遇到${c.hazardsText}时，情绪越急越要选更大容错区。${weather}${c.noteText}`,
+        next: "给自己设一个本轮心理指标：每次失误后 30 秒内完成复位，不复盘动作，只复盘目标。",
+      });
     }
-  
-    if (pct >= 65) {
-      return `球场攻略：${distanceText}这里的${describeMatches(m)}适合你发挥，但不要把每个洞都打成进攻洞。建议用「安全落点优先、果岭前沿可接受」的策略，稳住节奏后再挑选短四杆洞或顺风洞进攻。匹配度：${pct}%`;
+
+    if (mode === "bag") {
+      return buildCaddySections({
+        judgment: c.bagSaved ? `已读取你的球包距离：${c.bagText}。本场关键是用熟悉码数避开${c.hazardsText}。` : `还没有保存球包，当前使用默认估算：${c.bagText}。本场需要一个安全开球杆、一个球道推进杆和两个短杆距离。`,
+        action: c.bagSaved ? "把球包分成三档：开球安全档、150 码内上果岭档、80 码内救分档。风大或水障前，优先选择能停在完整挥杆距离的球杆。" : "建议在“我的球包”里保存 Driver、3W/5W、Hybrid、铁杆和挖起杆距离，再按真实码数做策略。",
+        risk: `${weather}不要用“最远距离”做选杆依据，用你 8 成力量能重复的距离做比赛码数。${c.noteText}`,
+        next: c.bagSaved ? "下次刷新页面后仍会读取这套球包；如当天风大或身体疲劳，请在现场补充里写明。" : "保存球包后重新分析，选杆建议会明显按你的球杆距离调整。",
+      });
     }
-  
-    return `球场攻略：${distanceText}这座球场和你的日常偏好不完全一致，更适合作为体验局。建议降低进攻预期，优先把球放回球道，遇到不熟悉地形时宁可多打一杆，也不要挑战低成功率线路。匹配度：${pct}%`;
+
+    if (c.match.isHighRisk) {
+      return buildCaddySections({
+        judgment: `${c.distanceText}${loc.name} 难度「${c.difficulty}」高于你的「${userProfile.skill}」档案，匹配度 ${c.pct}%。`,
+        action: `路线管理以保守为主：开球找宽区，第二杆只攻可见落点，短杆优先上果岭前沿。`,
+        risk: `主要风险是${c.hazardsText}和${c.miss}叠加。${weather}${c.noteText}`,
+        next: "先把前 3 洞当作节奏测试，不用成绩判断状态。",
+      });
+    }
+
+    return buildCaddySections({
+      judgment: `${c.distanceText}${loc.name} 与你的档案匹配度 ${c.pct}%，类型「${c.courseType}」，主要障碍是${c.hazardsText}。`,
+      action: c.pct >= 75 ? "可以选择性进攻，但只进攻落点清楚、下一杆角度好的位置；其他洞按球道中线和果岭前沿管理。" : "按体验局处理，优先球道、优先可见落点、优先完整挥杆距离，不把每个洞都打成进攻洞。",
+      risk: `${weather}如果出现${c.miss}，立即切换到保守线，避免连续丢杆。${c.noteText}`,
+      next: `本轮执行一句话：围绕「${c.goal}」，先少犯错，再找机会。`,
+    });
   }
   
-  // ─── Local LLM Caddy ───────────────────────────────────────
-  const CADDY_API_BASE = "http://localhost:11434/v1";
+  // ─── Caddy Runtime: local LLM / cloud API / basic rules ─────
   const CADDY_MODEL_KEY = "golf-caddy-model";
   const DEFAULT_CADDY_MODEL = "qwen3:8b";
+  const DEFAULT_LOCAL_CADDY_BASE = "http://localhost:11434/v1";
+  const DEFAULT_CLOUD_CADDY_ENDPOINT = "/api/caddy";
   let detectedCaddyModel = null;
   let modelDetectionStarted = false;
+
+  function normalizeCaddyMode(mode = appConfig.caddyMode) {
+    return ["local", "cloud", "basic"].includes(mode) ? mode : "basic";
+  }
+
+  function normalizeApiBase(base, fallback) {
+    return String(base || fallback).replace(/\/+$/, "");
+  }
+
+  function isGithubPagesStaticHost() {
+    return window.location.hostname.endsWith(".github.io");
+  }
+
+  function isRelativeEndpoint(endpoint) {
+    return String(endpoint || "").startsWith("/");
+  }
+
+  function getConfiguredCaddyMode() {
+    return normalizeCaddyMode(appConfig.caddyMode);
+  }
+
+  function getCaddyModeLabel(mode) {
+    if (mode === "local") return "本地大模型";
+    if (mode === "cloud") return "云端球童";
+    return "基础模式";
+  }
+
+  function updateCaddyRuntimeStatus(mode = "basic", detail = "") {
+    if (!caddyRuntimeStatus) return;
+    caddyRuntimeStatus.classList.remove("local", "cloud", "basic", "warning");
+    caddyRuntimeStatus.classList.add(mode);
+    caddyRuntimeStatus.textContent = `当前模式：${getCaddyModeLabel(mode)}${detail ? ` · ${detail}` : ""}`;
+  }
+
+  async function fetchJsonWithTimeout(url, options = {}, timeoutMs = 6000) {
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, { ...options, signal: controller.signal });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } finally {
+      window.clearTimeout(timer);
+    }
+  }
   
   async function resolveCaddyModel() {
     if (detectedCaddyModel !== null) return detectedCaddyModel;
     if (modelDetectionStarted) return null;
+    if (getConfiguredCaddyMode() !== "local") return null;
+    if (isGithubPagesStaticHost()) return null;
   
     modelDetectionStarted = true;
     try {
+      const localBaseUrl = normalizeApiBase(appConfig.localBaseUrl, DEFAULT_LOCAL_CADDY_BASE);
       const preferred = localStorage.getItem(CADDY_MODEL_KEY) || DEFAULT_CADDY_MODEL;
-      const res = await fetch(`${CADDY_API_BASE}/models`);
-      if (!res.ok) throw new Error(`Model list failed: ${res.status}`);
-  
-      const body = await res.json();
+      const body = await fetchJsonWithTimeout(`${localBaseUrl}/models`, {}, 1600);
       const models = Array.isArray(body.data) ? body.data.map((m) => m.id).filter(Boolean) : [];
       detectedCaddyModel = models.includes(preferred) ? preferred : models[0] || null;
       return detectedCaddyModel;
@@ -265,22 +598,59 @@ export function initGolfApp(moduleRegistry = {}) {
   
   function buildCaddyPrompt(loc, mode, note) {
     const m = calculateMatch(userProfile, loc);
+    const modeConfig = CADDY_MODE_CONFIG[mode] || CADDY_MODE_CONFIG.strategy;
+    const bagProfile = getCaddyBagProfile();
+    const courseProfile = {
+      name: loc.name,
+      province: loc.province,
+      city: loc.city,
+      holes: loc.holes,
+      par: loc.par,
+      difficulty: loc.difficulty,
+      priceLevel: loc.priceLevel,
+      courseType: loc.courseType,
+      hazards: loc.hazards,
+      bestFor: loc.bestFor,
+      grassType: loc.grassType,
+      greenSpeed: loc.greenSpeed,
+      signatureHoles: loc.signatureHoles,
+      facilities: loc.facilities,
+      tags: loc.tags,
+    };
+    const weatherProfile = currentCourseWeather ? {
+      mode: currentCourseWeather.mode,
+      source: currentCourseWeather.source,
+      available: currentCourseWeather.available,
+      summary: currentCourseWeather.summary,
+      riskLevel: currentCourseWeather.riskLevel,
+      risks: currentCourseWeather.risks,
+      caddyBrief: currentCourseWeather.caddyBrief,
+    } : null;
     const taskMap = {
       strategy: "球场攻略和路线管理",
       club: "选杆、距离控制和落点选择",
       training: "赛前训练计划和弱点修正",
       routine: "赛前准备、热身、节奏和注意事项",
+      fix: "失误修正和本场补救策略",
+      mental: "心理球童、压力处理和关键洞节奏",
+      bag: "球包配置和基于球杆距离的选杆建议",
     };
     return [
       "你是一个现实球场里的专业中文高尔夫球童。你需要像真人球童一样，结合球员能力、常见失误、目标、球场地形和距离，给出具体而可执行的建议。",
       "不要只说推荐或不推荐。必须体现个人定制化。",
-      `本次任务：${taskMap[mode] || taskMap.strategy}`,
-      "输出 120-180 字，分成 3 段：1.判断 2.打法/训练/选杆 3.风险提醒。不要编造不存在的球洞编号、价格、电话或天气。",
+      `本次任务：${taskMap[mode] || modeConfig.task}`,
+      `当前模式：${modeConfig.label}。模式重点：${modeConfig.task}`,
+      "必须输出 4 个结构化段落，严格使用这些中文标题：【判断】【执行】【风险】【下一步】。每段 1-2 句，必须可执行。",
+      "必须结合用户水平、平均杆数、开球距离、常见失误、本次目标、球场难度、障碍、距离和用户现场补充。",
+      "不允许编造不存在的球洞编号、价格、电话、营业时间或实时天气；天气只能引用提供的天气风险字段。",
       "",
       `用户档案：${JSON.stringify(userProfile)}。档案摘要：${getProfileSummary()}`,
-      `球场信息：${JSON.stringify(loc)}`,
+      `球场结构化档案：${JSON.stringify(courseProfile)}`,
+      `天气与打球风险：${JSON.stringify(weatherProfile)}`,
       `用户位置距离：${formatDistance(getCourseDistance(loc)) || "未知"}`,
       `用户现场补充：${note || "无"}`,
+      `用户球包配置：${bagProfile.text}`,
+      `球包来源：${bagProfile.saved ? "用户已保存到 localStorage" : "根据开球距离区间生成的默认估算"}`,
       `匹配结果：${JSON.stringify({
         score: m.finalScore,
         highRisk: m.isHighRisk,
@@ -295,33 +665,84 @@ export function initGolfApp(moduleRegistry = {}) {
   
   async function getCaddyAdviceFromLLM(loc, mode = "strategy", note = "") {
     const fallback = getCaddyAdvice(loc, mode, note);
+    const configuredMode = getConfiguredCaddyMode();
+
+    if (configuredMode === "basic") {
+      updateCaddyRuntimeStatus("basic", "规则建议");
+      return `${fallback}\n【来源】基础模式已启用：当前未请求本地或云端大模型。`;
+    }
+
+    if (configuredMode === "cloud") {
+      const endpoint = appConfig.cloudEndpoint || DEFAULT_CLOUD_CADDY_ENDPOINT;
+      if (isGithubPagesStaticHost() && isRelativeEndpoint(endpoint)) {
+        updateCaddyRuntimeStatus("cloud", "云端球童服务未配置");
+        return `${fallback}\n【来源】云端球童服务未配置。GitHub Pages 是静态站点，正式上线需要部署后端接口 /api/caddy。`;
+      }
+
+      try {
+        updateCaddyRuntimeStatus("cloud", "分析中");
+        const body = await fetchJsonWithTimeout(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            mode,
+            note,
+            prompt: buildCaddyPrompt(loc, mode, note),
+            course: {
+              id: loc.id,
+              name: loc.name,
+              province: loc.province,
+              city: loc.city,
+              difficulty: loc.difficulty,
+              courseType: loc.courseType,
+              hazards: loc.hazards,
+            },
+            profile: userProfile,
+          }),
+        }, 12000);
+        const content = body?.advice || body?.content || body?.choices?.[0]?.message?.content;
+        updateCaddyRuntimeStatus("cloud", "已连接");
+        return String(content || fallback).trim();
+      } catch {
+        updateCaddyRuntimeStatus("basic", "云端不可用，已回退");
+        return `${fallback}\n【来源】云端球童暂时不可用，已切换基础模式。`;
+      }
+    }
+
+    if (isGithubPagesStaticHost()) {
+      updateCaddyRuntimeStatus("basic", "线上不调用 localhost");
+      return `${fallback}\n【来源】GitHub Pages 环境不会调用本机 Ollama，已切换基础模式。`;
+    }
+
     const model = await resolveCaddyModel();
   
     if (!model) {
-      return `${fallback}\n\n本地球童已启用基础模式。安装模型后会自动升级为大模型建议。`;
+      updateCaddyRuntimeStatus("basic", "本地 Ollama 未连接");
+      return `${fallback}\n【来源】本地 Ollama 未连接，已启用基础模式。`;
     }
   
     try {
-      const res = await fetch(`${CADDY_API_BASE}/chat/completions`, {
+      updateCaddyRuntimeStatus("local", `使用 ${model}`);
+      const localBaseUrl = normalizeApiBase(appConfig.localBaseUrl, DEFAULT_LOCAL_CADDY_BASE);
+      const body = await fetchJsonWithTimeout(`${localBaseUrl}/chat/completions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           model,
           temperature: 0.72,
-          max_tokens: 420,
+          max_tokens: 560,
           messages: [
-            { role: "system", content: "你只输出中文高尔夫球童建议，不输出推理过程。语气专业、具体、像真人球童，不要泛泛而谈。" },
+            { role: "system", content: "你只输出中文高尔夫球童建议，不输出推理过程。语气专业、具体、像真人球童。输出必须有【判断】【执行】【风险】【下一步】四段，不要泛泛而谈。" },
             { role: "user", content: buildCaddyPrompt(loc, mode, note) },
           ],
         }),
-      });
-  
-      if (!res.ok) throw new Error(`Caddy request failed: ${res.status}`);
-      const body = await res.json();
+      }, 16000);
       const content = body?.choices?.[0]?.message?.content?.trim();
+      updateCaddyRuntimeStatus("local", `使用 ${model}`);
       return content || fallback;
     } catch {
-      return `${fallback}\n\n本地大模型暂时未响应，已切换基础建议。`;
+      updateCaddyRuntimeStatus("basic", "本地大模型未响应");
+      return `${fallback}\n【来源】本地大模型暂时未响应，已切换基础建议。`;
     }
   }
   
@@ -339,7 +760,7 @@ export function initGolfApp(moduleRegistry = {}) {
   // ─── Renderer ─────────────────────────────────────────────
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setPixelRatio(getScenePixelRatio());
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.2;
   renderer.domElement.style.touchAction = "none";
@@ -347,7 +768,7 @@ export function initGolfApp(moduleRegistry = {}) {
   
   // ─── Starfield ────────────────────────────────────────────
   function createStarfield() {
-    const count = isCompactViewport() ? 900 : 2000;
+    const count = isLowPowerDevice() ? 520 : isCompactViewport() ? 900 : 2000;
     const positions = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3);
   
@@ -537,10 +958,35 @@ export function initGolfApp(moduleRegistry = {}) {
     ctx.fillRect(0, 0, 32, 32);
     return new THREE.CanvasTexture(canvas);
   }
+
+  function createCameraBadgeTexture() {
+    const canvas = document.createElement("canvas");
+    canvas.width = 48;
+    canvas.height = 48;
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, 48, 48);
+    ctx.fillStyle = "rgba(6, 18, 30, 0.78)";
+    ctx.strokeStyle = "rgba(120, 245, 226, 0.92)";
+    ctx.lineWidth = 3;
+    ctx.fillRect(9, 16, 30, 20);
+    ctx.strokeRect(9, 16, 30, 20);
+    ctx.fillStyle = "rgba(120, 245, 226, 0.95)";
+    ctx.fillRect(15, 11, 11, 6);
+    ctx.beginPath();
+    ctx.arc(24, 26, 6, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(255, 211, 122, 0.98)";
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,0.85)";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    return new THREE.CanvasTexture(canvas);
+  }
   
   // ─── Markers ──────────────────────────────────────────────
   const orangeTex = createGlowTexture(255, 170, 50, 0.75);
   const cyanTex = createGlowTexture(0, 255, 220, 0.9);
+  const blueRingTex = createGlowTexture(80, 230, 255, 0.76);
+  const cameraBadgeTex = createCameraBadgeTexture();
   let markerContainer;
   
   function createMarkers(radius) {
@@ -553,15 +999,23 @@ export function initGolfApp(moduleRegistry = {}) {
   
       const geo = new THREE.SphereGeometry(0.0025, 8, 8);
       const dotMat = new THREE.MeshStandardMaterial({
-        color: 0x222222,
-        emissive: 0x000000,
-        emissiveIntensity: 0,
+        color: 0xd69a35,
+        emissive: 0x442500,
+        emissiveIntensity: 0.18,
         roughness: 0.5,
       });
       const dot = new THREE.Mesh(geo, dotMat);
       dot.userData = { index: i };
       dot.position.copy(pos);
       markerContainer.add(dot);
+
+      const hit = new THREE.Mesh(
+        new THREE.SphereGeometry(0.018, 8, 8),
+        new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })
+      );
+      hit.userData = { index: i };
+      hit.position.copy(pos);
+      markerContainer.add(hit);
   
       const glowMat = new THREE.SpriteMaterial({
         map: orangeTex,
@@ -574,150 +1028,516 @@ export function initGolfApp(moduleRegistry = {}) {
       glow.position.copy(pos);
       glow.scale.set(0.022, 0.022, 1);
       markerContainer.add(glow);
-  
-      dots.push({ dot, glow, dotMat, glowMat, basePos, pillar: null, highlight: false });
+
+      const nearbyRingMat = new THREE.SpriteMaterial({
+        map: blueRingTex,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        transparent: true,
+        opacity: 0,
+      });
+      const nearbyRing = new THREE.Sprite(nearbyRingMat);
+      nearbyRing.position.copy(pos);
+      nearbyRing.scale.set(0.036, 0.036, 1);
+      markerContainer.add(nearbyRing);
+
+      const cameraBadgeMat = new THREE.SpriteMaterial({
+        map: cameraBadgeTex,
+        depthWrite: false,
+        transparent: true,
+        opacity: hasCourseLocalRealview(loc) ? 0.9 : 0,
+      });
+      const cameraBadge = new THREE.Sprite(cameraBadgeMat);
+      cameraBadge.position.copy(pos.clone().add(pos.clone().normalize().multiplyScalar(0.026)));
+      cameraBadge.scale.set(0.018, 0.018, 1);
+      markerContainer.add(cameraBadge);
+
+      dots.push({
+        dot,
+        hit,
+        glow,
+        nearbyRing,
+        cameraBadge,
+        dotMat,
+        glowMat,
+        nearbyRingMat,
+        cameraBadgeMat,
+        basePos,
+        pillar: null,
+        recommended: false,
+        nearby: false,
+        realview: hasCourseLocalRealview(loc),
+      });
     });
   
     scene.add(markerContainer);
     return dots;
   }
+
+  function disposeMarkerPillar(marker) {
+    if (!marker?.pillar) return;
+    markerContainer.remove(marker.pillar);
+    marker.pillar.geometry.dispose();
+    marker.pillar.material.dispose();
+    marker.pillar = null;
+  }
+
+  function createMarkerPillar(marker, color = 0x68f6ff, opacity = 0.68, height = 0.64) {
+    disposeMarkerPillar(marker);
+    const pillarGeo = new THREE.CylinderGeometry(0.0018, 0.0042, height, isLowPowerDevice() ? 6 : 10);
+    const pillarMat = new THREE.MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity: isLowPowerDevice() ? opacity * 0.7 : opacity,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
+    const pillar = new THREE.Mesh(pillarGeo, pillarMat);
+    const normal = marker.basePos.clone().normalize();
+    const quat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal);
+    pillar.setRotationFromQuaternion(quat);
+    pillar.position.copy(marker.basePos).add(normal.multiplyScalar(height * 0.5));
+    pillar.userData = { index: marker.dot.userData.index };
+    markerContainer.add(pillar);
+    marker.pillar = pillar;
+  }
+
+  function getNearbyMarkerIndexes(limit = 18) {
+    if (!userLocation) return new Set();
+    return new Set(
+      golfLocations
+        .map((loc, index) => ({ index, distance: getCourseDistance(loc) }))
+        .filter((item) => item.distance !== null && item.distance <= 300)
+        .sort((a, b) => a.distance - b.distance)
+        .slice(0, limit)
+        .map((item) => item.index)
+    );
+  }
+
+  function updateGlobeMarkers() {
+    if (!markerContainer || !markers?.length) return;
+    const nearbyIndexes = getNearbyMarkerIndexes();
+    markers.forEach((m, i) => {
+      const loc = golfLocations[i];
+      const match = userProfile ? calculateMatch(userProfile, loc) : null;
+      const recommended = Boolean(match && match.finalScore >= 65 && !match.isHighRisk);
+      const nearby = nearbyIndexes.has(i);
+      const selected = selectedCourseIndex === i;
+      m.recommended = recommended;
+      m.nearby = nearby;
+      m.realview = hasCourseLocalRealview(loc);
+
+      if (selected) {
+        m.dotMat.color.set(0xffffff);
+        m.dotMat.emissive.set(0x66f7ff);
+        m.dotMat.emissiveIntensity = 1.8;
+        m.glowMat.map = cyanTex;
+        m.glowMat.opacity = 0.86;
+        m.nearbyRingMat.opacity = 0.6;
+        createMarkerPillar(m, 0x76f7ff, 0.78, 0.7);
+      } else {
+        disposeMarkerPillar(m);
+        if (recommended) {
+          m.dotMat.color.set(0xffc65c);
+          m.dotMat.emissive.set(0xffcc42);
+          m.dotMat.emissiveIntensity = 1.1;
+          m.glowMat.map = cyanTex;
+          m.glowMat.opacity = 0.54;
+        } else {
+          m.dotMat.color.set(0xd69a35);
+          m.dotMat.emissive.set(0x5a3000);
+          m.dotMat.emissiveIntensity = 0.28;
+          m.glowMat.map = orangeTex;
+          m.glowMat.opacity = 0.18;
+        }
+        m.nearbyRingMat.opacity = nearby ? 0.42 : 0;
+      }
+      m.cameraBadgeMat.opacity = m.realview ? 0.88 : 0;
+    });
+  }
   
   // ─── Global scan after profile submission ─────────────────
   function scanAllCourses() {
-    if (!userProfile) return;
-    markers.forEach((m, i) => {
-      const loc = golfLocations[i];
-      const { finalScore, isHighRisk } = calculateMatch(userProfile, loc);
-  
-      // Remove existing pillar if any
-      if (m.pillar) {
-        markerContainer.remove(m.pillar);
-        m.pillar.geometry.dispose();
-        m.pillar.material.dispose();
-        m.pillar = null;
+    updateGlobeMarkers();
+  }
+
+  function getCourseDifficultyRank(loc) {
+    return COURSE_DIFFICULTY_MAP[loc.difficulty] || COURSE_DIFFICULTY_MAP[loc.tags.skill] || 2;
+  }
+
+  function hasCourseLocalRealview(loc) {
+    return Boolean(loc.realviewVideo || loc.panoVideo);
+  }
+
+  function hasCourseIndependentModel(loc) {
+    return Boolean(loc.hasIndependentModel || (loc.model && loc.model !== DEFAULT_COURSE_MODEL_URL));
+  }
+
+  function getCourseLibraryText(loc) {
+    return [
+      loc.name,
+      loc.province,
+      loc.city,
+      loc.address,
+      loc.description,
+      loc.courseType,
+      loc.difficulty,
+      loc.priceLevel,
+      loc.grassType,
+      loc.greenSpeed,
+      ...(Array.isArray(loc.hazards) ? loc.hazards : []),
+      ...(Array.isArray(loc.bestFor) ? loc.bestFor : []),
+      loc.tags.strategy,
+      loc.tags.terrain,
+      loc.tags.environment,
+      loc.tags.skill,
+    ].filter(Boolean).join(" ").toLowerCase();
+  }
+
+  function createCourseLibraryRecord(loc, index) {
+    const match = userProfile ? calculateMatch(userProfile, loc).finalScore : 0;
+    const distance = getCourseDistance(loc);
+    const distanceBoost = distance === null ? 0 : Math.max(0, 120 - distance) / 2;
+    const difficultyRank = getCourseDifficultyRank(loc);
+    const userLevel = userProfile ? LEVEL_MAP[userProfile.skill] || 2 : 2;
+    const difficultyDelta = Math.abs(difficultyRank - userLevel);
+    const difficultyScore = userProfile ? Math.max(0, 18 - difficultyDelta * 8) : 10;
+    const distanceScore = distance === null ? 0 : Math.max(0, 70 - Math.min(distance, 700) * 0.1);
+    const matchScore = userProfile ? match * 0.55 : 24;
+    return {
+      loc,
+      index,
+      match,
+      distance,
+      difficultyRank,
+      nearbyScore: distanceScore + matchScore + difficultyScore,
+      score: match + distanceBoost + (hasCourseLocalRealview(loc) ? 4 : 0) + (hasCourseIndependentModel(loc) ? 3 : 0),
+    };
+  }
+
+  function getFilteredCourses() {
+    const query = courseLibraryState.query.trim().toLowerCase();
+    return golfLocations
+      .map((loc, index) => createCourseLibraryRecord(loc, index))
+      .filter(({ loc, match, distance }) => {
+        if (query && !getCourseLibraryText(loc).includes(query)) return false;
+        if (courseLibraryState.province !== "all" && loc.province !== courseLibraryState.province) return false;
+        if (courseLibraryState.courseType !== "all" && loc.courseType !== courseLibraryState.courseType) return false;
+        if (courseLibraryState.difficulty !== "all" && (loc.difficulty || loc.tags.skill) !== courseLibraryState.difficulty) return false;
+        if (courseLibraryState.suitableOnly && (!userProfile || match < 65)) return false;
+        if (courseLibraryState.videoOnly && !hasCourseLocalRealview(loc)) return false;
+        if (courseLibraryState.modelOnly && !hasCourseIndependentModel(loc)) return false;
+        if (courseLibraryState.mode === "nearby" && userLocation && courseLibraryState.nearbyRange !== "all") {
+          const maxDistance = Number(courseLibraryState.nearbyRange);
+          if (distance === null || distance > maxDistance) return false;
+        }
+        return true;
+      });
+  }
+
+  function getRankedCourses(mode = courseLibraryState.mode) {
+    const sortMode = mode === "nearby" && userLocation && courseLibraryState.sort === "recommend"
+      ? "nearbyRecommend"
+      : courseLibraryState.sort;
+    const records = getFilteredCourses();
+    if (sortMode === "distance" && !userLocation) return records.sort((a, b) => b.score - a.score);
+    return records.sort((a, b) => {
+      if (sortMode === "nearbyRecommend") return b.nearbyScore - a.nearbyScore || (a.distance ?? Infinity) - (b.distance ?? Infinity);
+      if (sortMode === "distance") {
+        if (a.distance === null && b.distance === null) return a.loc.name.localeCompare(b.loc.name, "zh-Hans-CN");
+        if (a.distance === null) return 1;
+        if (b.distance === null) return -1;
+        return a.distance - b.distance;
       }
-  
-      if (finalScore >= 65 && !isHighRisk) {
-        // Highlight: yellow sphere + light pillar
-        m.dotMat.color.set(0xffaa33);
-        m.dotMat.emissive.set(0xffcc00);
-        m.dotMat.emissiveIntensity = 1.2;
-        m.glowMat.map = cyanTex;
-        m.glowMat.opacity = 0.7;
-  
-        // Create light pillar
-        const pillarGeo = new THREE.CylinderGeometry(0.0015, 0.003, 0.5, 8);
-        const pillarMat = new THREE.MeshBasicMaterial({
-          color: 0x00ffcc,
-          transparent: true,
-          opacity: 0.55,
-          depthWrite: false,
-        });
-        const pillar = new THREE.Mesh(pillarGeo, pillarMat);
-  
-        const normal = m.basePos.clone().normalize();
-        const quat = new THREE.Quaternion().setFromUnitVectors(
-          new THREE.Vector3(0, 1, 0),
-          normal
-        );
-        pillar.setRotationFromQuaternion(quat);
-        pillar.position.copy(m.basePos).add(normal.multiplyScalar(0.25));
-        pillar.userData = { index: i };
-  
-        markerContainer.add(pillar);
-        m.pillar = pillar;
-        m.highlight = true;
-      } else {
-        // Dim: slightly muted yellow
-        m.dotMat.color.set(0x886622);
-        m.dotMat.emissive.set(0x443300);
-        m.dotMat.emissiveIntensity = 0.15;
-        m.glowMat.map = orangeTex;
-        m.glowMat.opacity = 0.25;
-        m.highlight = false;
-      }
+      if (sortMode === "match") return b.match - a.match || b.score - a.score;
+      if (sortMode === "difficultyAsc") return a.difficultyRank - b.difficultyRank || b.score - a.score;
+      if (sortMode === "difficultyDesc") return b.difficultyRank - a.difficultyRank || b.score - a.score;
+      return b.score - a.score || b.match - a.match || a.loc.name.localeCompare(b.loc.name, "zh-Hans-CN");
     });
   }
   
-  function getRankedCourses(mode) {
-    return golfLocations.map((loc, index) => {
-      const match = userProfile ? calculateMatch(userProfile, loc).finalScore : 0;
-      const distance = getCourseDistance(loc);
-      const distanceBoost = distance === null ? 0 : Math.max(0, 120 - distance) / 2;
-      return { loc, index, match, distance, score: match + distanceBoost };
-    }).sort((a, b) => {
-      if (mode === "nearby" && a.distance !== null && b.distance !== null) return a.distance - b.distance;
-      if (mode === "recommend") return b.score - a.score;
-      return b.match - a.match || a.loc.name.localeCompare(b.loc.name, "zh-Hans-CN");
+  function syncCourseLibraryControls() {
+    if (!listTools) return;
+    listTools.hidden = false;
+    if (listNearbyTools) listNearbyTools.hidden = courseLibraryState.mode !== "nearby";
+    if (listSearch) listSearch.value = courseLibraryState.query;
+    if (listProvinceFilter) listProvinceFilter.value = courseLibraryState.province;
+    if (listTypeFilter) listTypeFilter.value = courseLibraryState.courseType;
+    if (listDifficultyFilter) listDifficultyFilter.value = courseLibraryState.difficulty;
+    if (listSortFilter) {
+      const distanceOption = listSortFilter.querySelector('option[value="distance"]');
+      if (distanceOption) distanceOption.disabled = !userLocation;
+      if (courseLibraryState.sort === "distance" && !userLocation) courseLibraryState.sort = "recommend";
+      listSortFilter.value = courseLibraryState.sort;
+    }
+    if (listSuitableFilter) {
+      if (!userProfile) courseLibraryState.suitableOnly = false;
+      listSuitableFilter.checked = courseLibraryState.suitableOnly;
+      listSuitableFilter.disabled = !userProfile;
+    }
+    if (listVideoFilter) listVideoFilter.checked = courseLibraryState.videoOnly;
+    if (listModelFilter) listModelFilter.checked = courseLibraryState.modelOnly;
+    document.querySelectorAll("[data-nearby-range]").forEach((button) => {
+      button.classList.toggle("active", button.dataset.nearbyRange === courseLibraryState.nearbyRange);
     });
   }
-  
-  function renderCourseList(mode = "overview") {
+
+  function getLibraryNote(resultCount) {
+    const notes = [];
+    if (!userLocation) notes.push("开启定位或选择城市后可按距离排序。");
+    if (courseLibraryState.mode === "nearby" && userLocation) notes.push("推荐分 = 距离分 + 球风匹配分 + 难度适配分。");
+    if (!userProfile) notes.push("完成球风档案后可筛选适合当前用户的球场。");
+    if (courseLibraryState.videoOnly) notes.push("本地实景仅展示已授权/已配置素材。");
+    if (courseLibraryState.modelOnly) notes.push("独立 3D 模型指球场单独配置的模型，不含通用模型。");
+    if (!notes.length) notes.push(`已找到 ${resultCount} 座球场。`);
+    return notes.join(" ");
+  }
+
+  function getUserLocationLabel() {
+    if (!userLocation) return "未开启";
+    if (userLocationSource === "device") return "已开启定位，仅本地排序";
+    if (userLocationSource === "city") return `已选择城市：${userLocation.city}`;
+    return "已设置位置";
+  }
+
+  function updateNearbySummary(records) {
+    if (!nearbyStatus || !nearbyCount || !nearbyDistance) return;
+    const nearest = records.filter((item) => item.distance !== null).sort((a, b) => a.distance - b.distance)[0];
+    nearbyStatus.textContent = `定位状态：${getUserLocationLabel()}`;
+    nearbyCount.textContent = `最近球场：${records.length} 座`;
+    nearbyDistance.textContent = `最近距离：${nearest ? formatDistance(nearest.distance) : "--"}`;
+  }
+
+  function getNearbyRangeLabel() {
+    if (courseLibraryState.nearbyRange === "all") return "全国";
+    return `${courseLibraryState.nearbyRange}km 内`;
+  }
+
+  function renderCourseList(mode = courseLibraryState.mode || "overview") {
+    courseLibraryState.mode = mode;
+    if (mode === "nearby" && userLocation && courseLibraryState.sort === "distance") courseLibraryState.sort = "recommend";
+    syncCourseLibraryControls();
     const ranked = getRankedCourses(mode);
     const nearby = mode === "nearby";
-    const title = nearby ? "附近高尔夫球场" : "中国高尔夫球场全览";
+    if (nearby) updateNearbySummary(ranked);
+    const title = nearby ? "附近高尔夫球场" : "中国高尔夫球场库";
     const subtitle = nearby
-      ? (userLocation ? `已按当前位置由近到远排序，共 ${ranked.length} 座球场。` : "定位后会按距离优先推荐。")
-      : `收录 ${ranked.length} 座中国高尔夫球场，可按个人档案查看匹配度。`;
+      ? (userLocation ? `${getNearbyRangeLabel()}显示 ${ranked.length} / ${golfLocations.length} 座球场，按推荐分排序。` : "定位或选择城市后会按距离、匹配度和难度适配推荐。")
+      : `收录 ${golfLocations.length} 座中国高尔夫球场，当前显示 ${ranked.length} 座。`;
   
     listTitle.textContent = title;
     listSubtitle.textContent = subtitle;
-    listContent.innerHTML = ranked.map(({ loc, index, match, distance }) => {
-      const distanceText = formatDistance(distance);
-      const badge = nearby && distanceText ? distanceText : (userProfile ? `${match}%` : "查看");
+    if (listFilterNote) listFilterNote.textContent = getLibraryNote(ranked.length);
+    listContent.innerHTML = ranked.map(({ loc, index, match, distance, nearbyScore }) => {
+      const distanceText = formatDistance(distance) || "未定位";
+      const matchText = userProfile ? `${match}%` : "建档后计算";
+      const difficulty = loc.difficulty || loc.tags.skill;
+      const badge = nearby && userLocation ? `推荐 ${Math.round(nearbyScore)}` : (userProfile ? `${match}%` : "查看");
+      const locationText = [loc.province, loc.city].filter(Boolean).join(" · ") || "中国";
+      const featureTags = [
+        loc.tags.strategy,
+        loc.tags.terrain,
+        loc.tags.environment,
+        loc.courseType,
+        hasCourseLocalRealview(loc) ? "有实景" : null,
+        hasCourseIndependentModel(loc) ? "独立模型" : null,
+      ].filter(Boolean);
       return `
         <button class="course-row" type="button" data-course-index="${index}">
           <span class="course-row-title">
-            <strong>${loc.name}</strong>
-            <span>${badge}</span>
+            <strong>${escapeHtml(loc.name)}</strong>
+            <span>${escapeHtml(badge)}</span>
           </span>
-          <p class="course-row-desc">${loc.description}</p>
+          <span class="course-row-meta">
+            <span>${escapeHtml(locationText)}</span>
+            <span>距离 ${escapeHtml(distanceText)}</span>
+            <span>匹配 ${escapeHtml(matchText)}</span>
+            <span>难度 ${escapeHtml(difficulty)}</span>
+          </span>
+          <p class="course-row-desc">${escapeHtml(loc.description)}</p>
           <span class="course-row-tags">
-            <span>${loc.tags.strategy}</span>
-            <span>${loc.tags.terrain}</span>
-            <span>${loc.tags.environment}</span>
-            <span>${loc.tags.skill}</span>
+            ${featureTags.map((tag) => `<span>${escapeHtml(tag)}</span>`).join("")}
           </span>
         </button>
       `;
-    }).join("") || `<p class="list-empty">暂无可展示球场。</p>`;
+    }).join("") || `<p class="list-empty">没有找到匹配的球场。可以减少筛选条件，或搜索“重庆”“观澜湖”“山地”等关键词。</p>`;
   
     listPanel.classList.add("visible");
     listPanel.setAttribute("aria-hidden", "false");
   }
   
-  function showLocationStatus(text) {
-    listTitle.textContent = "附近高尔夫球场";
-    listSubtitle.textContent = text;
-    listContent.innerHTML = `<p class="list-empty">${text}</p>`;
-    listPanel.classList.add("visible");
-    listPanel.setAttribute("aria-hidden", "false");
+  function populateCourseLibraryFilters() {
+    const fillSelect = (select, allLabel, values) => {
+      if (!select) return;
+      select.innerHTML = [
+        `<option value="all">${allLabel}</option>`,
+        ...values.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`),
+      ].join("");
+    };
+    const provinces = [...new Set(golfLocations.map((loc) => loc.province).filter(Boolean))].sort((a, b) => a.localeCompare(b, "zh-Hans-CN"));
+    const types = [...new Set(golfLocations.map((loc) => loc.courseType).filter(Boolean))].sort((a, b) => a.localeCompare(b, "zh-Hans-CN"));
+    const preferredDifficulties = ["新手友好", "中等", "挑战", "锦标赛"];
+    const difficulties = [
+      ...preferredDifficulties.filter((value) => golfLocations.some((loc) => (loc.difficulty || loc.tags.skill) === value)),
+      ...[...new Set(golfLocations.map((loc) => loc.difficulty || loc.tags.skill).filter(Boolean))]
+        .filter((value) => !preferredDifficulties.includes(value)),
+    ];
+    fillSelect(listProvinceFilter, "全部省份", provinces);
+    fillSelect(listTypeFilter, "全部类型", types);
+    fillSelect(listDifficultyFilter, "全部难度", difficulties);
   }
-  
-  function requestNearbyCourses() {
+
+  function populateNearbyCitySelect(select = nearbyCitySelect) {
+    if (!select) return;
+    select.innerHTML = [
+      `<option value="">选择城市近似排序</option>`,
+      ...NEARBY_CITIES.map((city) => `<option value="${escapeHtml(city.name)}">${escapeHtml(city.name)}</option>`),
+    ].join("");
+    const savedCity = localStorage.getItem(NEARBY_CITY_STORAGE_KEY);
+    if (savedCity && NEARBY_CITIES.some((city) => city.name === savedCity)) select.value = savedCity;
+  }
+
+  function useManualNearbyCity(cityName, { fly = true } = {}) {
+    const city = NEARBY_CITIES.find((item) => item.name === cityName);
+    if (!city) return;
+    userLocation = { lat: city.lat, lng: city.lng, city: city.name };
+    userLocationSource = "city";
+    localStorage.setItem(NEARBY_CITY_STORAGE_KEY, city.name);
+    courseLibraryState.mode = "nearby";
+    courseLibraryState.sort = "recommend";
+    updateGlobeMarkers();
+    renderCourseList("nearby");
+    const nearest = getRankedCourses("nearby")[0];
+    if (fly && nearest) flyToCourse(nearest.index, 1.7);
+  }
+
+  function startDeviceLocation() {
     if (!navigator.geolocation) {
-      showLocationStatus("当前浏览器不支持定位，可以先查看中国球场全览。");
+      renderNearbyLocationPrompt("当前浏览器不支持定位，请选择城市继续使用附近球场。");
       return;
     }
   
-    showLocationStatus("正在获取当前位置，请在浏览器提示中允许定位。");
+    listTitle.textContent = "附近球场";
+    listSubtitle.textContent = "正在获取当前位置，请在浏览器提示中允许定位。";
+    if (listTools) listTools.hidden = true;
+    listContent.innerHTML = `<p class="list-empty">定位只用于本地距离排序，不会上传定位数据，也不会保存精确经纬度。</p>`;
+    listPanel.classList.add("visible");
+    listPanel.setAttribute("aria-hidden", "false");
+
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         userLocation = {
           lat: pos.coords.latitude,
           lng: pos.coords.longitude,
         };
+        userLocationSource = "device";
+        courseLibraryState.mode = "nearby";
+        courseLibraryState.sort = "recommend";
+        updateGlobeMarkers();
         renderCourseList("nearby");
         const nearest = getRankedCourses("nearby")[0];
         if (nearest) flyToCourse(nearest.index, 1.7);
       },
       () => {
-        showLocationStatus("定位未成功。你仍然可以通过全览查看球场，或检查浏览器定位权限后再试。");
+        renderNearbyLocationPrompt("定位未成功。你可以选择城市，继续按近似距离查看附近球场。");
       },
       { enableHighAccuracy: true, timeout: 9000, maximumAge: 300000 }
     );
   }
   
+  function renderNearbyLocationPrompt(message = "") {
+    courseLibraryState.mode = "nearby";
+    listTitle.textContent = "附近球场";
+    listSubtitle.textContent = "需要位置用于本地距离排序。";
+    if (listTools) listTools.hidden = true;
+    const savedCity = localStorage.getItem(NEARBY_CITY_STORAGE_KEY) || "";
+    listContent.innerHTML = `
+      <div class="nearby-permission-card">
+        <strong>开启附近球场推荐</strong>
+        <p>我们需要定位来计算你与球场的距离，并按“距离分 + 球风匹配分 + 难度适配分”生成附近推荐。</p>
+        <p>定位仅在浏览器本地用于排序，不会上传定位数据，也不会保存精确经纬度。</p>
+        ${message ? `<p class="course-provider-note">${escapeHtml(message)}</p>` : ""}
+        <div class="course-action-row">
+          <button class="course-realview-button" type="button" data-nearby-action="locate">开始定位</button>
+          <button class="course-realview-button" type="button" data-nearby-action="overview">先看全国</button>
+        </div>
+        <label class="nearby-prompt-city">
+          <span>或手动选择城市</span>
+          <select id="nearby-prompt-city">
+            <option value="">选择城市近似排序</option>
+            ${NEARBY_CITIES.map((city) => `<option value="${escapeHtml(city.name)}" ${city.name === savedCity ? "selected" : ""}>${escapeHtml(city.name)}</option>`).join("")}
+          </select>
+        </label>
+        <button class="course-realview-button" type="button" data-nearby-action="city">按所选城市排序</button>
+      </div>
+    `;
+    listPanel.classList.add("visible");
+    listPanel.setAttribute("aria-hidden", "false");
+  }
+
+  function showLocationStatus(text) {
+    listTitle.textContent = "附近高尔夫球场";
+    listSubtitle.textContent = text;
+    if (listTools) listTools.hidden = true;
+    listContent.innerHTML = `<p class="list-empty">${text}</p>`;
+    listPanel.classList.add("visible");
+    listPanel.setAttribute("aria-hidden", "false");
+  }
+
+  function requestNearbyCourses() {
+    renderNearbyLocationPrompt();
+  }
+
+  populateCourseLibraryFilters();
+  populateNearbyCitySelect();
+  syncCourseLibraryControls();
+
+  listSearch?.addEventListener("input", () => {
+    courseLibraryState.query = listSearch.value;
+    renderCourseList(courseLibraryState.mode);
+  });
+  listProvinceFilter?.addEventListener("change", () => {
+    courseLibraryState.province = listProvinceFilter.value;
+    renderCourseList(courseLibraryState.mode);
+  });
+  listTypeFilter?.addEventListener("change", () => {
+    courseLibraryState.courseType = listTypeFilter.value;
+    renderCourseList(courseLibraryState.mode);
+  });
+  listDifficultyFilter?.addEventListener("change", () => {
+    courseLibraryState.difficulty = listDifficultyFilter.value;
+    renderCourseList(courseLibraryState.mode);
+  });
+  listSortFilter?.addEventListener("change", () => {
+    if (listSortFilter.value === "distance" && !userLocation) {
+      courseLibraryState.sort = "recommend";
+    } else {
+      courseLibraryState.sort = listSortFilter.value;
+    }
+    renderCourseList(courseLibraryState.mode);
+  });
+  listSuitableFilter?.addEventListener("change", () => {
+    courseLibraryState.suitableOnly = listSuitableFilter.checked;
+    renderCourseList(courseLibraryState.mode);
+  });
+  listVideoFilter?.addEventListener("change", () => {
+    courseLibraryState.videoOnly = listVideoFilter.checked;
+    renderCourseList(courseLibraryState.mode);
+  });
+  listModelFilter?.addEventListener("change", () => {
+    courseLibraryState.modelOnly = listModelFilter.checked;
+    renderCourseList(courseLibraryState.mode);
+  });
+  document.querySelectorAll("[data-nearby-range]").forEach((button) => {
+    button.addEventListener("click", () => {
+      courseLibraryState.nearbyRange = button.dataset.nearbyRange || "300";
+      renderCourseList("nearby");
+    });
+  });
+  nearbyCitySelect?.addEventListener("change", () => {
+    if (nearbyCitySelect.value) useManualNearbyCity(nearbyCitySelect.value);
+  });
+
   overviewOpen.addEventListener("click", () => renderCourseList("overview"));
   locateNearby.addEventListener("click", requestNearbyCourses);
   listClose.addEventListener("click", () => {
@@ -725,6 +1545,17 @@ export function initGolfApp(moduleRegistry = {}) {
     listPanel.setAttribute("aria-hidden", "true");
   });
   listContent.addEventListener("click", (e) => {
+    const nearbyAction = e.target.closest("[data-nearby-action]");
+    if (nearbyAction) {
+      const action = nearbyAction.dataset.nearbyAction;
+      if (action === "locate") startDeviceLocation();
+      if (action === "overview") renderCourseList("overview");
+      if (action === "city") {
+        const promptCity = document.getElementById("nearby-prompt-city");
+        if (promptCity?.value) useManualNearbyCity(promptCity.value);
+      }
+      return;
+    }
     const row = e.target.closest("[data-course-index]");
     if (!row) return;
     const idx = Number(row.dataset.courseIndex);
@@ -739,6 +1570,7 @@ export function initGolfApp(moduleRegistry = {}) {
   const spaceAccents = createSpaceAccents();
   const markerRadius = 1;
   const markers = createMarkers(markerRadius);
+  updateGlobeMarkers();
   
   // ─── Controls ─────────────────────────────────────────────
   const controls = new OrbitControls(camera, renderer.domElement);
@@ -753,6 +1585,8 @@ export function initGolfApp(moduleRegistry = {}) {
   controls.minDistance = 1.36;
   controls.maxDistance = 10;
   controls.target.set(0, 0, 0);
+  controls.touches.ONE = THREE.TOUCH.ROTATE;
+  controls.touches.TWO = THREE.TOUCH.DOLLY_ROTATE;
   let earthUserInteracting = false;
   controls.addEventListener("start", () => {
     earthUserInteracting = true;
@@ -1661,7 +2495,7 @@ export function initGolfApp(moduleRegistry = {}) {
     alpha: true,
     preserveDrawingBuffer: true,
   });
-  modelRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  modelRenderer.setPixelRatio(getModelPixelRatio());
   modelRenderer.setClearColor(0x000000, 0);
   
   const modelScene = new THREE.Scene();
@@ -1683,6 +2517,7 @@ export function initGolfApp(moduleRegistry = {}) {
   modelControls.maxPolarAngle = Math.PI * 0.52;
   modelControls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
   modelControls.touches.ONE = THREE.TOUCH.ROTATE;
+  modelControls.touches.TWO = THREE.TOUCH.DOLLY_ROTATE;
   modelControls.target.set(0, -0.45, 0);
   modelControls.update();
   
@@ -1693,6 +2528,7 @@ export function initGolfApp(moduleRegistry = {}) {
     modelControls.enableRotate = true;
     modelControls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
     modelControls.touches.ONE = THREE.TOUCH.ROTATE;
+    modelControls.touches.TWO = THREE.TOUCH.DOLLY_ROTATE;
     modelRotateToggle.textContent = modelRotationEnabled ? "自动环绕：开" : "自动环绕：关";
     modelRotateToggle.classList.toggle("active", modelRotationEnabled);
   }
@@ -1745,6 +2581,9 @@ export function initGolfApp(moduleRegistry = {}) {
   let embeddedAmap = null;
   const amapCourseResolutionCache = new Map();
   const courseTerrainTextureCache = new Map();
+  const DEFAULT_COURSE_MODEL_URL = "./assets/golf_scene.glb";
+  const courseModelCache = new Map();
+  let activeModelLoadToken = 0;
   
   function disposeObject3D(object) {
     object.traverse((child) => {
@@ -2106,14 +2945,14 @@ export function initGolfApp(moduleRegistry = {}) {
     courseTerrainGroup.visible = false;
     modelGroup.visible = true;
     modelControls.enabled = true;
-    if (selectedCourseIndex !== null) modelLabel.textContent = `${golfLocations[selectedCourseIndex].name} · 准备加载 3D 球场模型`;
     if (selectedCourseIndex !== null) {
-      loadGolfSceneModel().then((loaded) => {
+      const loc = golfLocations[selectedCourseIndex];
+      prepareFallbackCourseModel(loc, "轻量球场预览，高清 3D 模型准备加载");
+      loadGolfSceneModel(selectedCourseIndex).then((loaded) => {
         if (selectedCourseIndex === null || modelViewMode !== "model") return;
-        const loc = golfLocations[selectedCourseIndex];
         modelLabel.textContent = loaded
           ? `${loc.name} · 3D 球场模型`
-          : `${loc.name} · 3D 模型加载失败，已使用备用地形`;
+          : `${loc.name} · 3D 模型加载失败，已使用轻量球场预览`;
       });
     }
   }
@@ -2173,6 +3012,61 @@ export function initGolfApp(moduleRegistry = {}) {
     });
   }
   
+  function getCourseModelUrl(index = selectedCourseIndex) {
+    const loc = golfLocations[index];
+    return loc?.model || DEFAULT_COURSE_MODEL_URL;
+  }
+
+  function getCourseModelSourceLabel(index = selectedCourseIndex) {
+    return getCourseModelUrl(index) === DEFAULT_COURSE_MODEL_URL ? "通用模型" : "专属模型";
+  }
+
+  function prepareFallbackCourseModel(loc, message = "轻量球场预览") {
+    clearModelGroupContents();
+    modelHasFallback = false;
+    createFallbackCourseModel();
+    modelGroup.visible = true;
+    courseTerrainGroup.visible = false;
+    if (loc && modelLabel) modelLabel.textContent = `${loc.name} · ${message}`;
+  }
+
+  function normalizeLoadedCourseScene(sceneObject) {
+    sceneObject.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(sceneObject);
+    const size = box.getSize(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z) || 1;
+    const targetSize = 6.0;
+    const scale = targetSize / maxDim;
+    const center = box.getCenter(new THREE.Vector3());
+
+    sceneObject.scale.setScalar(scale);
+    sceneObject.position.set(-center.x * scale, -center.y * scale + 0.35, -center.z * scale);
+    sceneObject.updateMatrixWorld(true);
+    return sceneObject;
+  }
+
+  function cloneLoadedCourseScene(sceneTemplate) {
+    const clone = sceneTemplate.clone(true);
+    clone.traverse((child) => {
+      if (!child.isMesh) return;
+      if (child.geometry) child.geometry = child.geometry.clone();
+      if (Array.isArray(child.material)) {
+        child.material = child.material.map((material) => material.clone());
+      } else if (child.material) {
+        child.material = child.material.clone();
+      }
+    });
+    return clone;
+  }
+
+  function showLoadedCourseModel(sceneTemplate) {
+    clearModelGroupContents();
+    modelHasFallback = false;
+    modelGroup.add(cloneLoadedCourseScene(sceneTemplate));
+    modelGroup.visible = true;
+    courseTerrainGroup.visible = false;
+  }
+
   function createFallbackCourseModel() {
     if (modelHasFallback || modelGroup.children.length > 0) return;
     modelHasFallback = true;
@@ -2223,8 +3117,6 @@ export function initGolfApp(moduleRegistry = {}) {
   const loadingText = document.getElementById("loading-text");
   
   let gltfLoaderModulePromise = null;
-  let golfModelLoadPromise = null;
-  let golfModelLoadState = "idle";
   
   function hideInitialLoadingScreen() {
     if (!loadingScreen || loadingScreen.classList.contains("fade-out")) return;
@@ -2244,79 +3136,103 @@ export function initGolfApp(moduleRegistry = {}) {
     }
   }
   
-  function setModelLoadingLabel(pct) {
-    if (selectedCourseIndex === null || modelViewMode !== "model") return;
-    const loc = golfLocations[selectedCourseIndex];
-    modelLabel.textContent = `${loc.name} · 3D模型加载中 ${pct}%`;
+  function setModelLoadingLabel(index, pct) {
+    if (selectedCourseIndex !== index || modelViewMode !== "model") return;
+    const loc = golfLocations[index];
+    if (!loc) return;
+    const sourceLabel = getCourseModelSourceLabel(index);
+    const progressText = Number.isFinite(pct) ? ` ${pct}%` : "";
+    modelLabel.textContent = `${loc.name} · ${sourceLabel}加载中${progressText}`;
   }
   
-  function loadGolfSceneModel() {
-    if (golfModelLoadState === "loaded" || golfModelLoadState === "fallback") {
-      return Promise.resolve(golfModelLoadState === "loaded");
-    }
-    if (golfModelLoadPromise) return golfModelLoadPromise;
+  function setModelLoadingMessage(index, message) {
+    if (selectedCourseIndex !== index || modelViewMode !== "model") return;
+    const loc = golfLocations[index];
+    if (loc) modelLabel.textContent = `${loc.name} · ${message}`;
+  }
   
-    golfModelLoadState = "loading";
-    setModelLoadingLabel(0);
+  function createModelLoadPromise(modelUrl) {
     gltfLoaderModulePromise ||= import("three/addons/loaders/GLTFLoader.js");
-    golfModelLoadPromise = gltfLoaderModulePromise
-      .then(({ GLTFLoader }) => new Promise((resolve) => {
+    const entry = { state: "loading", promise: null, scene: null, error: null };
+    entry.promise = gltfLoaderModulePromise
+      .then(({ GLTFLoader }) => new Promise((resolve, reject) => {
         const modelLoader = new GLTFLoader();
         modelLoader.load(
-          "./assets/golf_scene.glb",
+          modelUrl,
           (gltf) => {
-            const box = new THREE.Box3().setFromObject(gltf.scene);
-            const size = box.getSize(new THREE.Vector3());
-            const maxDim = Math.max(size.x, size.y, size.z) || 1;
-            const targetSize = 6.0;
-            const scale = targetSize / maxDim;
-  
-            gltf.scene.scale.setScalar(scale);
-            const center = box.getCenter(new THREE.Vector3());
-            gltf.scene.position.set(-center.x * scale, -center.y * scale + 0.35, -center.z * scale);
-  
-            clearModelGroupContents();
-            modelHasFallback = false;
-            modelGroup.add(gltf.scene);
-            golfModelLoadState = "loaded";
-            resolve(true);
+            entry.scene = normalizeLoadedCourseScene(gltf.scene);
+            entry.state = "loaded";
+            resolve(entry.scene);
           },
           (xhr) => {
-            if (xhr.total > 0) {
-              const pct = Math.min(99, Math.round((xhr.loaded / xhr.total) * 100));
-              setModelLoadingLabel(pct);
+            if (typeof entry.onProgress === "function" && xhr.total > 0) {
+              entry.onProgress(Math.min(99, Math.round((xhr.loaded / xhr.total) * 100)));
             }
           },
-          () => {
-            console.warn("Golf model failed to load, path:", "./assets/golf_scene.glb");
-            reportPageResourceIssue(
-              "球场 3D 模型加载失败",
-              "资源 ./assets/golf_scene.glb 没有成功加载，已自动切换为备用地形。请确认大模型文件已上传，且 GitHub Pages 没有被网络中断。"
-            );
-            clearModelGroupContents();
-            modelHasFallback = false;
-            createFallbackCourseModel();
-            golfModelLoadState = "fallback";
-            resolve(false);
+          (error) => {
+            entry.state = "failed";
+            entry.error = error;
+            reject(error);
           }
         );
-      }))
-      .catch(() => {
+      }));
+    courseModelCache.set(modelUrl, entry);
+    return entry;
+  }
+
+  function loadGolfSceneModel(index = selectedCourseIndex) {
+    const loc = golfLocations[index];
+    if (!loc) return Promise.resolve(false);
+
+    const modelUrl = getCourseModelUrl(index);
+    const token = ++activeModelLoadToken;
+    const cachedEntry = courseModelCache.get(modelUrl);
+
+    if (cachedEntry?.state === "loaded" && cachedEntry.scene) {
+      showLoadedCourseModel(cachedEntry.scene);
+      setModelLoadingLabel(index, 100);
+      return Promise.resolve(true);
+    }
+
+    let entry = cachedEntry;
+    if (!entry || entry.state === "failed") {
+      entry = createModelLoadPromise(modelUrl);
+    }
+
+    setModelLoadingLabel(index, 0);
+    const slowTimer = window.setTimeout(() => {
+      if (token === activeModelLoadToken && selectedCourseIndex === index && modelViewMode === "model") {
+        setModelLoadingMessage(index, "高清 3D 球场模型加载中，先显示轻量球场预览");
+      }
+    }, 4000);
+
+    entry.onProgress = (pct) => {
+      if (token === activeModelLoadToken) setModelLoadingLabel(index, pct);
+    };
+
+    return entry.promise
+      .then((sceneTemplate) => {
+        if (token === activeModelLoadToken && selectedCourseIndex === index && modelViewMode === "model") {
+          showLoadedCourseModel(sceneTemplate);
+          setModelLoadingLabel(index, 100);
+        }
+        return true;
+      })
+      .catch((error) => {
+        console.warn("Golf model failed to load, path:", modelUrl, error);
+        if (token === activeModelLoadToken && selectedCourseIndex === index && modelViewMode === "model") {
+          prepareFallbackCourseModel(loc, "3D 模型加载失败，已使用轻量球场预览");
+        }
         reportPageResourceIssue(
           "球场 3D 模型加载失败",
-          "Three.js 的 GLTFLoader 或 ./assets/golf_scene.glb 加载失败，已使用备用地形展示。"
+          `资源 ${modelUrl} 没有成功加载，已自动切换为轻量球场预览。详情卡片和数字球童仍可正常使用。`
         );
-        clearModelGroupContents();
-        modelHasFallback = false;
-        createFallbackCourseModel();
-        golfModelLoadState = "fallback";
         return false;
       })
       .finally(() => {
-        golfModelLoadPromise = null;
+        window.clearTimeout(slowTimer);
+        if (entry.onProgress && token === activeModelLoadToken) entry.onProgress = null;
       });
-  
-    return golfModelLoadPromise;
   }
   
   requestAnimationFrame(() => {
@@ -2345,6 +3261,9 @@ export function initGolfApp(moduleRegistry = {}) {
   const courseTerrain = document.getElementById("course-terrain");
   const courseEnvironment = document.getElementById("course-environment");
   const courseSummary = document.getElementById("course-summary");
+  const weatherRiskCard = document.getElementById("weather-risk-card");
+  const weatherRiskSummary = document.getElementById("weather-risk-summary");
+  const weatherRiskDetail = document.getElementById("weather-risk-detail");
   const courseTabButtons = document.querySelectorAll(".course-tab");
   const courseTabPanel = document.getElementById("course-tab-panel");
   
@@ -2353,15 +3272,33 @@ export function initGolfApp(moduleRegistry = {}) {
   const modelLabel = document.getElementById("model-label");
   const caddyModeButtons = document.querySelectorAll(".caddy-mode");
   const caddyNote = document.getElementById("caddy-note");
+  const caddyRuntimeStatus = document.getElementById("caddy-runtime-status");
+  const caddyBagPanel = document.getElementById("caddy-bag-panel");
+  const caddyBagStatus = document.getElementById("caddy-bag-status");
+  const caddyBagInputs = document.querySelectorAll("[data-bag-club]");
+  const caddyBagSave = document.getElementById("caddy-bag-save");
+  const caddyBagReset = document.getElementById("caddy-bag-reset");
   const caddyAsk = document.getElementById("caddy-ask");
+  const caddyCopy = document.getElementById("caddy-copy");
   const caddyAvatarImage = document.querySelector("#caddy-avatar img");
-  let selectedCourseIndex = null;
+  const globeTooltip = document.createElement("div");
+  globeTooltip.id = "globe-marker-tooltip";
+  globeTooltip.setAttribute("role", "status");
+  globeTooltip.setAttribute("aria-live", "polite");
+  document.body.appendChild(globeTooltip);
   let selectedCaddyMode = "strategy";
+  let latestCaddyAdviceText = "";
+  let currentCourseWeather = null;
+  let weatherRequestId = 0;
   let photoDetailVisible = false;
   let realViewDragging = false;
   let realViewStartX = 0;
   let realViewStartYaw = 0;
   let realViewYaw = 0;
+  let hoveredGlobeIndex = null;
+  let globePointerActive = false;
+  let globePointerMoved = false;
+  let globePointerType = "mouse";
   
   caddyAvatarImage?.addEventListener("error", () => {
     reportPageResourceIssue(
@@ -2369,6 +3306,60 @@ export function initGolfApp(moduleRegistry = {}) {
       "资源 ./assets/caddy_photo.png 没有成功加载。请确认 assets/caddy_photo.png 已上传到 GitHub Pages。"
     );
   });
+
+  function updateCaddyBagStatus(saved = Boolean(readSavedCaddyBag())) {
+    if (!caddyBagStatus) return;
+    caddyBagStatus.textContent = saved ? "已保存" : "未保存";
+    caddyBagStatus.classList.toggle("saved", saved);
+  }
+
+  function hydrateCaddyBagInputs() {
+    const saved = readSavedCaddyBag();
+    const estimated = estimateGolfBagFromDrive();
+    caddyBagInputs.forEach((input) => {
+      const key = input.dataset.bagClub;
+      input.placeholder = key === "putter"
+        ? "例如：长推容易短"
+        : String(estimated[key] || "");
+      input.value = saved?.[key] ?? "";
+    });
+    updateCaddyBagStatus(Boolean(saved));
+  }
+
+  function saveCaddyBag() {
+    const data = getCurrentBagInputData();
+    if (!hasCaddyBagValues(data)) {
+      localStorage.removeItem(CADDY_BAG_STORAGE_KEY);
+      hydrateCaddyBagInputs();
+      return;
+    }
+    localStorage.setItem(CADDY_BAG_STORAGE_KEY, JSON.stringify(data));
+    hydrateCaddyBagInputs();
+    if (selectedCourseIndex !== null && (selectedCaddyMode === "club" || selectedCaddyMode === "bag")) refreshCaddyAdvice();
+  }
+
+  function clearCaddyBag() {
+    localStorage.removeItem(CADDY_BAG_STORAGE_KEY);
+    caddyBagInputs.forEach((input) => {
+      input.value = "";
+    });
+    hydrateCaddyBagInputs();
+    if (selectedCourseIndex !== null && (selectedCaddyMode === "club" || selectedCaddyMode === "bag")) refreshCaddyAdvice();
+  }
+
+  caddyBagSave?.addEventListener("click", saveCaddyBag);
+  caddyBagReset?.addEventListener("click", clearCaddyBag);
+  caddyBagInputs.forEach((input) => {
+    input.addEventListener("input", () => updateCaddyBagStatus(false));
+  });
+  hydrateCaddyBagInputs();
+  if (isGithubPagesStaticHost() && getConfiguredCaddyMode() === "local") {
+    updateCaddyRuntimeStatus("basic", "线上不调用 localhost");
+  } else if (isGithubPagesStaticHost() && getConfiguredCaddyMode() === "cloud" && isRelativeEndpoint(appConfig.cloudEndpoint || DEFAULT_CLOUD_CADDY_ENDPOINT)) {
+    updateCaddyRuntimeStatus("cloud", "云端球童服务未配置");
+  } else {
+    updateCaddyRuntimeStatus(getConfiguredCaddyMode(), getConfiguredCaddyMode() === "local" ? "等待连接" : "");
+  }
   
   modelTerrainToggle?.addEventListener("click", showCourseTerrainMode);
   modelGenericToggle?.addEventListener("click", showGenericModelMode);
@@ -2376,9 +3367,27 @@ export function initGolfApp(moduleRegistry = {}) {
   
   function getCourseVideoSrc(index) {
     const loc = golfLocations[index];
-    return loc?.realviewVideo || "";
+    return loc?.realviewVideo || loc?.panoVideo || "";
   }
   
+  function getRealviewSourceLabel(loc) {
+    if (!loc?.realviewVideo && !loc?.panoVideo) return "未配置本地实景";
+    if (loc.demoCourseRealview || loc.realviewType === "demo") return "本地演示实景视频";
+    if (loc.panoVideo) return "真实 360 全景视频";
+    return "真实实景视频";
+  }
+
+  function getRealviewNote(loc) {
+    if (!loc?.realviewVideo && !loc?.panoVideo) {
+      return "本地实景仅展示已授权/已配置素材；当前球场未配置本地实景，可打开高德地图查看公开地图。";
+    }
+    if (loc.realviewNote) return loc.realviewNote;
+    if (loc.demoCourseRealview || loc.realviewType === "demo") {
+      return "本地实景仅展示已授权/已配置素材；当前视频为明确配置的演示素材，不代表所有球场都有真实实拍。";
+    }
+    return "本地实景仅展示已授权/已配置素材。";
+  }
+
   function applyRealViewYaw() {
     const shift = Math.sin(realViewYaw) * 10;
     const scale = 1.16 + Math.abs(Math.cos(realViewYaw)) * 0.03;
@@ -2393,6 +3402,7 @@ export function initGolfApp(moduleRegistry = {}) {
     hideEmbeddedAmap();
     modelCanvas.style.visibility = "visible";
     selectedCourseIndex = null;
+    updateGlobeMarkers();
     overlay.classList.remove("visible");
     document.body.classList.remove("overlay-open");
   }
@@ -2520,8 +3530,8 @@ export function initGolfApp(moduleRegistry = {}) {
     photoDetailImage.src = src || createFallbackPhoto(loc);
     if (!videoSrc) {
       photoDetailVideo.style.display = "none";
-      photoDetailTitle.textContent = `${loc.name} · 暂无实景视频`;
-      photoDetailMeta.textContent = "当前球场尚未接入实景资源，已保留 3D 球场模型视角。";
+      photoDetailTitle.textContent = `${loc.name} · 3D 近景快照`;
+      photoDetailMeta.textContent = `${getRealviewNote(loc)} 下方画面为 3D 近景快照，不是实拍图。`;
       photoDetail.classList.add("visible");
       photoDetail.setAttribute("aria-hidden", "false");
       photoDetailVisible = true;
@@ -2541,8 +3551,8 @@ export function initGolfApp(moduleRegistry = {}) {
     applyRealViewYaw();
     photoDetailVideo.load();
     photoDetailVideo.play().catch(() => {});
-    photoDetailTitle.textContent = `${loc.name} · 实景视频 / 360环视`;
-    photoDetailMeta.textContent = "按住实景水平拖动，可模拟以自我为中心的 360 度观察。";
+    photoDetailTitle.textContent = `${loc.name} · ${getRealviewSourceLabel(loc)}`;
+    photoDetailMeta.textContent = `${getRealviewNote(loc)} 封面来自 3D 近景快照；按住视频水平拖动，可模拟以自我为中心的 360 度观察。`;
     photoDetail.classList.add("visible");
     photoDetail.setAttribute("aria-hidden", "false");
     photoDetailVisible = true;
@@ -2591,8 +3601,9 @@ export function initGolfApp(moduleRegistry = {}) {
     const parts = [loc.description];
     if (userProfile) {
       const match = calculateMatch(userProfile, loc);
-      parts.push(`匹配度 ${match.finalScore}%，难度 ${loc.tags.skill}，核心风格：${loc.tags.strategy} / ${loc.tags.terrain} / ${loc.tags.environment}。`);
+      parts.push(`匹配度 ${match.finalScore}%，难度 ${loc.difficulty || loc.tags.skill}，类型 ${loc.courseType || loc.tags.terrain}，核心风格：${loc.tags.strategy} / ${loc.tags.terrain} / ${loc.tags.environment}。`);
     }
+    parts.push(`主要障碍：${formatList(loc.hazards)}。适合：${formatList(loc.bestFor)}。`);
     const distance = formatDistance(getCourseDistance(loc));
     if (distance) parts.push(`当前位置距离约 ${distance}。`);
     return parts.join(" ");
@@ -2606,6 +3617,118 @@ export function initGolfApp(moduleRegistry = {}) {
       '"': "&quot;",
       "'": "&#39;",
     }[char]));
+  }
+
+  function formatList(value, fallback = "待确认") {
+    if (Array.isArray(value) && value.length) return value.filter(Boolean).join("、");
+    if (typeof value === "string" && value.trim()) return value.trim();
+    return fallback;
+  }
+
+  function formatFacilityValue(value) {
+    if (value === true) return "有";
+    if (value === false) return "待确认";
+    if (typeof value === "string" && value.trim()) return value.trim();
+    return "待确认";
+  }
+
+  function getWeatherAdviceText(weather = currentCourseWeather) {
+    if (!weather?.available) return "";
+    return `${weather.caddyBrief} `;
+  }
+
+  function renderWeatherRisk(weather, state = "ready") {
+    if (!weatherRiskCard || !weatherRiskSummary || !weatherRiskDetail) return;
+    weatherRiskCard.classList.remove("loading", "unavailable", "risk-low", "risk-medium", "risk-high");
+
+    if (appConfig.weatherMode === "disabled") {
+      weatherRiskCard.hidden = true;
+      return;
+    }
+
+    weatherRiskCard.hidden = false;
+    if (state === "loading") {
+      weatherRiskCard.classList.add("loading");
+      weatherRiskSummary.textContent = `正在读取天气风险 · ${getWeatherModeLabel(appConfig)}`;
+      weatherRiskDetail.textContent = "天气数据只用于本地打球风险提示，不会影响球场详情加载。";
+      return;
+    }
+
+    if (!weather) {
+      weatherRiskCard.classList.add("unavailable");
+      weatherRiskSummary.textContent = "暂无天气数据";
+      weatherRiskDetail.textContent = "天气模块未返回数据，数字球童会继续使用球场地形和用户档案给出建议。";
+      return;
+    }
+
+    if (!weather.available) {
+      weatherRiskCard.classList.add("unavailable");
+      weatherRiskSummary.textContent = weather.summary || "天气暂不可用";
+      weatherRiskDetail.textContent = "未配置真实 API Key 时不会请求外部天气接口，页面和数字球童可继续正常使用。";
+      return;
+    }
+
+    const riskClass = weather.riskLevel === "高" ? "risk-high" : weather.riskLevel === "中" ? "risk-medium" : "risk-low";
+    weatherRiskCard.classList.add(riskClass);
+    weatherRiskSummary.textContent = `${weather.source} · 风险${weather.riskLevel} · ${weather.summary}`;
+    weatherRiskDetail.textContent = weather.risks?.join(" ") || "天气风险较低，可按正常节奏准备。";
+  }
+
+  function loadCourseWeather(index) {
+    const loc = golfLocations[index];
+    const requestId = ++weatherRequestId;
+    currentCourseWeather = null;
+
+    if (!loc || appConfig.weatherMode === "disabled") {
+      renderWeatherRisk(null);
+      return Promise.resolve(null);
+    }
+
+    renderWeatherRisk(null, "loading");
+    return getCourseWeather(loc, appConfig)
+      .then((weather) => {
+        if (requestId !== weatherRequestId || selectedCourseIndex !== index) return null;
+        currentCourseWeather = weather;
+        renderWeatherRisk(weather);
+        return weather;
+      })
+      .catch((error) => {
+        console.warn("Weather risk failed:", error);
+        if (requestId !== weatherRequestId || selectedCourseIndex !== index) return null;
+        currentCourseWeather = null;
+        renderWeatherRisk(null);
+        return null;
+      });
+  }
+
+  function parseCaddySections(advice) {
+    const text = String(advice || "").trim();
+    if (!text) return [];
+    const matches = [...text.matchAll(/【([^】]+)】\s*([\s\S]*?)(?=【[^】]+】|$)/g)];
+    if (matches.length) {
+      return matches.map((match) => ({
+        title: match[1].trim(),
+        body: match[2].trim(),
+      })).filter((item) => item.body);
+    }
+    return text.split(/\n{2,}/).map((part, index) => ({
+      title: index === 0 ? "球童建议" : `补充 ${index + 1}`,
+      body: part.trim(),
+    })).filter((item) => item.body);
+  }
+
+  function renderCaddyAdvice(advice, { source = "" } = {}) {
+    latestCaddyAdviceText = String(advice || "").trim();
+    const sections = parseCaddySections(latestCaddyAdviceText);
+    caddyText.innerHTML = sections.map((section) => `
+      <section class="caddy-advice-card">
+        <strong>${escapeHtml(section.title)}</strong>
+        <p>${escapeHtml(section.body)}</p>
+      </section>
+    `).join("") || `<section class="caddy-advice-card"><strong>球童建议</strong><p>暂无建议内容。</p></section>`;
+    if (source) {
+      caddyText.insertAdjacentHTML("beforeend", `<span class="caddy-source">${escapeHtml(source)}</span>`);
+    }
   }
   
   function renderCourseTab(tabName = "terrain") {
@@ -2627,21 +3750,38 @@ export function initGolfApp(moduleRegistry = {}) {
       courseTabPanel.innerHTML = `
         <strong>${escapeHtml(loc.name)}</strong>
         <p>${escapeHtml(loc.province || "中国")} ${escapeHtml(loc.city || "")} · ${loc.holes || 18} 洞 · Par ${loc.par || 72}</p>
-        <p>练习场：${loc.facilities?.drivingRange ? "有" : "待确认"} · 餐饮：${loc.facilities?.restaurant ? "有" : "待确认"} · 住宿：${loc.facilities?.hotel ? "有" : "待确认"}</p>
+        <div class="course-info-grid">
+          <span><b>地址</b>${escapeHtml(loc.address || "待确认")}</span>
+          <span><b>难度</b>${escapeHtml(loc.difficulty || "待确认")}</span>
+          <span><b>定位</b>${escapeHtml(loc.priceLevel || "待确认")}</span>
+          <span><b>类型</b>${escapeHtml(loc.courseType || "待确认")}</span>
+          <span><b>主要障碍</b>${escapeHtml(formatList(loc.hazards))}</span>
+          <span><b>适合人群</b>${escapeHtml(formatList(loc.bestFor))}</span>
+          <span><b>草种</b>${escapeHtml(loc.grassType || "待确认")}</span>
+          <span><b>果岭速度</b>${escapeHtml(loc.greenSpeed || "待确认")}</span>
+          <span><b>特色球洞</b>${escapeHtml(formatList(loc.signatureHoles))}</span>
+          <span><b>设施</b>练习场：${escapeHtml(formatFacilityValue(loc.facilities?.drivingRange))} · 餐饮：${escapeHtml(formatFacilityValue(loc.facilities?.restaurant))} · 住宿：${escapeHtml(formatFacilityValue(loc.facilities?.hotel))}</span>
+        </div>
       `;
       return;
     }
   
     if (tabName === "realview") {
-      const hasVideo = Boolean(loc.realviewVideo || loc.panoVideo);
+      const videoSrc = getCourseVideoSrc(selectedCourseIndex);
+      const hasVideo = Boolean(videoSrc);
       const verified = isCourseMapVerified(loc);
+      const sourceLabel = getRealviewSourceLabel(loc);
+      const buttonText = hasVideo
+        ? (loc.demoCourseRealview || loc.realviewType === "demo" ? "播放演示实景" : "播放本地实景")
+        : "暂无本地实景";
       courseTabPanel.innerHTML = `
-        <strong>实景地图 / 360 环视</strong>
-        <p>${verified ? "当前球场已使用校准坐标。" : "当前球场使用估算坐标；接入高德 Key 后会自动搜索并锁定高尔夫 POI。"}“打开高德地图”会优先进入球场搜索/坐标结果；“播放本地实景”使用当前项目已有视频资源，不再混用。</p>
+        <strong>外部地图 / 本地实景 / 3D 近景快照</strong>
+        <p>${verified ? "当前球场已使用校准坐标。" : "当前球场使用估算坐标；接入高德 Key 后会自动搜索并锁定高尔夫 POI。"} 本地实景仅展示已授权/已配置素材；未配置时可打开高德地图查看公开地图。</p>
+        <p>当前本地实景状态：${escapeHtml(sourceLabel)}。3D 近景快照来自当前模型视角，不是实拍图。</p>
         <div class="course-action-row">
           <button class="course-realview-button" id="course-amap-embed" type="button">内嵌高德3D</button>
           <button class="course-realview-button" id="course-amap-open" type="button">打开高德地图</button>
-          <button class="course-realview-button" id="course-realview-open" type="button" ${hasVideo ? "" : "disabled"}>${hasVideo ? "播放本地实景" : "暂无本地实景"}</button>
+          <button class="course-realview-button" id="course-realview-open" type="button" ${hasVideo ? "" : "disabled"}>${buttonText}</button>
         </div>
       `;
       return;
@@ -2659,12 +3799,18 @@ export function initGolfApp(moduleRegistry = {}) {
     const loc = golfLocations[selectedCourseIndex];
     const note = caddyNote.value.trim();
     const requestId = ++caddyRequestId;
-    caddyText.textContent = "数字球童正在结合档案、球场、距离与现场补充重新分析...";
+    caddyText.innerHTML = `
+      <section class="caddy-advice-card loading">
+        <strong>正在分析</strong>
+        <p>数字球童正在结合档案、球场、距离、天气、球包和现场补充重新分析...</p>
+      </section>
+    `;
+    updateCaddyRuntimeStatus(getConfiguredCaddyMode(), "准备分析");
     caddyBubble.scrollTop = 0;
   
     getCaddyAdviceFromLLM(loc, selectedCaddyMode, note).then((advice) => {
       if (requestId === caddyRequestId) {
-        caddyText.textContent = advice;
+        renderCaddyAdvice(advice);
         requestAnimationFrame(() => {
           caddyBubble.scrollTop = 0;
         });
@@ -2722,6 +3868,7 @@ export function initGolfApp(moduleRegistry = {}) {
     }
   
     selectedCourseIndex = index;
+    updateGlobeMarkers();
     selectedCaddyMode = "strategy";
     caddyModeButtons.forEach((button) => {
       button.classList.toggle("active", button.dataset.caddyMode === selectedCaddyMode);
@@ -2745,14 +3892,24 @@ export function initGolfApp(moduleRegistry = {}) {
     syncModelRotationMode();
     showCourseTerrainMode();
     renderCourseTab("terrain");
-  
-    refreshCaddyAdvice();
+
+    caddyText.innerHTML = `
+      <section class="caddy-advice-card loading">
+        <strong>正在分析</strong>
+        <p>数字球童正在结合档案、球场、距离与天气风险分析...</p>
+      </section>
+    `;
+    caddyBubble.scrollTop = 0;
+    loadCourseWeather(index).finally(() => {
+      if (selectedCourseIndex === index) refreshCaddyAdvice();
+    });
     requestAnimationFrame(() => requestAnimationFrame(updateModelRendererSize));
   }
   
   caddyModeButtons.forEach((button) => {
     button.addEventListener("click", () => {
       selectedCaddyMode = button.dataset.caddyMode;
+      if (selectedCaddyMode === "bag" && caddyBagPanel) caddyBagPanel.open = true;
       caddyModeButtons.forEach((item) => item.classList.toggle("active", item === button));
       refreshCaddyAdvice();
     });
@@ -2781,6 +3938,23 @@ export function initGolfApp(moduleRegistry = {}) {
   });
   
   caddyAsk.addEventListener("click", refreshCaddyAdvice);
+
+  caddyCopy?.addEventListener("click", async () => {
+    const text = latestCaddyAdviceText || caddyText.textContent.trim();
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      caddyCopy.textContent = "已复制";
+      window.setTimeout(() => {
+        caddyCopy.textContent = "复制建议";
+      }, 1100);
+    } catch {
+      caddyCopy.textContent = "复制失败";
+      window.setTimeout(() => {
+        caddyCopy.textContent = "复制建议";
+      }, 1100);
+    }
+  });
   
   cardClose.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -2827,9 +4001,122 @@ export function initGolfApp(moduleRegistry = {}) {
       );
     }
   });
+
+  function getGlobeClickableObjects() {
+    return markers.flatMap((m) => {
+      const objects = [m.hit, m.dot];
+      if (m.pillar) objects.push(m.pillar);
+      return objects;
+    });
+  }
+
+  function findGlobeMarkerAt(clientX, clientY) {
+    mouse.x = (clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(clientY / window.innerHeight) * 2 + 1;
+    raycaster.setFromCamera(mouse, camera);
+    const hits = raycaster.intersectObjects(getGlobeClickableObjects(), false);
+    if (!hits.length) return null;
+    const idx = hits[0].object.userData.index;
+    return markers[idx]?.hit.visible ? idx : null;
+  }
+
+  function getGlobeTooltipText(index) {
+    const loc = golfLocations[index];
+    if (!loc) return "";
+    const location = [loc.province, loc.city].filter(Boolean).join(" · ") || "中国";
+    const match = userProfile ? `${calculateMatch(userProfile, loc).finalScore}%` : "建档后计算";
+    const badges = [
+      markers[index]?.recommended ? "推荐" : null,
+      markers[index]?.nearby ? "附近" : null,
+      markers[index]?.realview ? "有实景" : null,
+    ].filter(Boolean).join(" · ");
+    return `
+      <strong>${escapeHtml(loc.name)}</strong>
+      <span>${escapeHtml(location)} · 匹配 ${escapeHtml(match)}</span>
+      ${badges ? `<em>${escapeHtml(badges)}</em>` : ""}
+    `;
+  }
+
+  function showGlobeTooltip(index, clientX = 0, clientY = 0) {
+    if (index === null || index === undefined) {
+      globeTooltip.classList.remove("visible");
+      hoveredGlobeIndex = null;
+      return;
+    }
+    hoveredGlobeIndex = index;
+    globeTooltip.innerHTML = getGlobeTooltipText(index);
+    globeTooltip.style.left = `${Math.min(window.innerWidth - 190, clientX + 14)}px`;
+    globeTooltip.style.top = `${Math.max(78, clientY - 16)}px`;
+    globeTooltip.classList.add("visible");
+  }
+
+  function updateGlobeHover(clientX, clientY) {
+    if (viewMode !== "globe" || mapDetailVisible || isTransitioning) {
+      showGlobeTooltip(null);
+      return;
+    }
+    const index = findGlobeMarkerAt(clientX, clientY);
+    if (index !== hoveredGlobeIndex) showGlobeTooltip(index, clientX, clientY);
+    else if (index !== null) showGlobeTooltip(index, clientX, clientY);
+  }
+
+  function updateGlobeMarkerPresentation(time) {
+    const cameraDistance = camera.position.length();
+    const farLevel = cameraDistance > 5.2 ? 2 : cameraDistance > 3.35 ? 1 : 0;
+    const cameraDir = camera.position.clone().normalize();
+
+    markers.forEach((m, i) => {
+      const loc = golfLocations[i];
+      const selected = selectedCourseIndex === i;
+      const hovered = hoveredGlobeIndex === i;
+      const priority = selected || hovered || m.recommended || m.nearby || m.realview;
+      const onFrontSide = m.basePos.clone().normalize().dot(cameraDir) > -0.03;
+      const spreadBucket = (i * 37 + Math.round(loc.lat * 10) + Math.round(loc.lng * 10)) % 5;
+      const clusteredOut = !priority && ((farLevel === 2 && spreadBucket !== 0) || (farLevel === 1 && spreadBucket > 2));
+      const visible = viewMode === "globe" && onFrontSide && !clusteredOut;
+      const distanceScale = farLevel === 2 ? 0.62 : farLevel === 1 ? 0.82 : 1;
+      const pulse = 1 + Math.sin(time * (m.recommended ? 4.1 : 2.5) + i) * (m.recommended ? 0.14 : 0.04);
+      const clickPulse = m.clickPulseUntil && performance.now() < m.clickPulseUntil
+        ? 1 + Math.sin(time * 22) * 0.18 + 0.24
+        : 1;
+      const base = selected ? 1.7 : hovered ? 1.45 : m.recommended ? 1.18 : m.nearby ? 1.04 : 0.82;
+      const scale = base * pulse * clickPulse * distanceScale;
+
+      m.dot.visible = visible;
+      m.hit.visible = visible;
+      m.glow.visible = visible;
+      m.nearbyRing.visible = visible && (m.nearby || selected || hovered);
+      m.cameraBadge.visible = visible && m.realview && farLevel < 2;
+      if (m.pillar) m.pillar.visible = visible && selected;
+
+      m.dot.scale.setScalar(scale);
+      m.hit.scale.setScalar(Math.max(1, 1.35 / Math.max(distanceScale, 0.6)));
+      m.glow.scale.set(0.022 * scale * (m.recommended ? 1.28 : 1), 0.022 * scale * (m.recommended ? 1.28 : 1), 1);
+      m.nearbyRing.scale.set(0.04 * scale, 0.04 * scale, 1);
+      m.cameraBadge.scale.set(0.016 * Math.max(0.9, scale), 0.016 * Math.max(0.9, scale), 1);
+
+      const opacityFactor = farLevel === 2 && !priority ? 0.4 : 1;
+      m.glowMat.opacity = (selected ? 0.88 : m.recommended ? 0.58 : m.nearby ? 0.36 : 0.16) * opacityFactor;
+      m.nearbyRingMat.opacity = visible && (m.nearby || selected || hovered) ? (selected ? 0.72 : hovered ? 0.62 : 0.42) : 0;
+      m.cameraBadgeMat.opacity = visible && m.realview && farLevel < 2 ? 0.86 : 0;
+    });
+  }
   
   renderer.domElement.addEventListener("pointerdown", (e) => {
     mouseDown.set(e.clientX, e.clientY);
+    globePointerActive = true;
+    globePointerMoved = false;
+    globePointerType = e.pointerType || "mouse";
+    if (e.pointerType === "touch") updateGlobeHover(e.clientX, e.clientY);
+  });
+
+  renderer.domElement.addEventListener("pointermove", (e) => {
+    if (globePointerActive && mouseDown.distanceTo(new THREE.Vector2(e.clientX, e.clientY)) > (globePointerType === "touch" ? 10 : 7)) {
+      globePointerMoved = true;
+      showGlobeTooltip(null);
+      return;
+    }
+    if (e.pointerType !== "touch") updateGlobeHover(e.clientX, e.clientY);
   });
   
   renderer.domElement.addEventListener("wheel", (e) => {
@@ -2838,21 +4125,28 @@ export function initGolfApp(moduleRegistry = {}) {
   
   renderer.domElement.addEventListener("pointerup", (e) => {
     mouseUp.set(e.clientX, e.clientY);
-    if (mouseDown.distanceTo(mouseUp) > 3) return;
-  
-    mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-    mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-  
-    raycaster.setFromCamera(mouse, camera);
-    const clickable = markers.flatMap(m => m.pillar ? [m.dot, m.pillar] : [m.dot]);
-    const hits = raycaster.intersectObjects(clickable);
-  
-    if (hits.length > 0) {
-      const idx = hits[0].object.userData.index;
+    const clickThreshold = e.pointerType === "touch" ? 10 : 7;
+    globePointerActive = false;
+    if (globePointerMoved || mouseDown.distanceTo(mouseUp) > clickThreshold) return;
+
+    const idx = findGlobeMarkerAt(e.clientX, e.clientY);
+    if (idx !== null) {
+      showGlobeTooltip(idx, e.clientX, e.clientY);
       openCourse(idx, { fly: true, distance: 1.42 });
     } else {
       hideOverlay();
     }
+  });
+
+  renderer.domElement.addEventListener("pointerleave", () => {
+    globePointerActive = false;
+    showGlobeTooltip(null);
+  });
+
+  renderer.domElement.addEventListener("pointercancel", () => {
+    globePointerActive = false;
+    globePointerMoved = false;
+    showGlobeTooltip(null);
   });
   
   modelCanvas.addEventListener("pointerdown", (e) => {
@@ -2885,6 +4179,7 @@ export function initGolfApp(moduleRegistry = {}) {
   
   // ─── Animation loop ───────────────────────────────────────
   const clock = new THREE.Clock();
+  let globeMarkerFrame = 0;
   
   function animate() {
     requestAnimationFrame(animate);
@@ -2906,23 +4201,8 @@ export function initGolfApp(moduleRegistry = {}) {
   
     updateMapTween();
   
-    markers.forEach((m, i) => {
-      const pulse = 1 + Math.sin(t * 2.5 + i) * 0.04;
-      const clickPulse = m.clickPulseUntil && performance.now() < m.clickPulseUntil
-        ? 1 + Math.sin(t * 22) * 0.18 + 0.24
-        : 1;
-  
-      if (m.highlight) {
-        const s = pulse * 1.2 * clickPulse;
-        m.dot.scale.setScalar(s);
-        m.glow.scale.set(0.026 * s, 0.026 * s, 1);
-  
-      } else {
-        const s = pulse * clickPulse;
-        m.dot.scale.setScalar(s);
-        m.glow.scale.set(0.022 * s, 0.022 * s, 1);
-      }
-    });
+    globeMarkerFrame += 1;
+    if (!isLowPowerDevice() || globeMarkerFrame % 2 === 0) updateGlobeMarkerPresentation(t);
   
     updateEarthCameraTween();
     if (!earthCameraTween) controls.update();
@@ -2953,6 +4233,8 @@ export function initGolfApp(moduleRegistry = {}) {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(getScenePixelRatio());
+    modelRenderer.setPixelRatio(getModelPixelRatio());
     if (mapDetailVisible) renderDetailMapNow();
   });
   

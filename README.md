@@ -78,15 +78,45 @@ https://unpkg.com/three@0.160.0/
 
 如果 CDN、Three.js、模型、贴图或视频加载失败，页面会显示中文错误提示，不会只留下黑屏。后续如果希望进一步提高国内访问速度，可以把 Three.js 文件下载到本项目中并改为本地相对路径。
 
-## Ollama 本地大模型
+## 数字球童模式
 
-数字球童支持调用本机 Ollama：
+数字球童现在分为三层运行模式，配置位于 `config.js`：
+
+```js
+export const appConfig = {
+  caddyMode: "local", // local | cloud | basic
+  localBaseUrl: "http://localhost:11434/v1",
+  cloudEndpoint: "/api/caddy",
+};
+```
+
+`basic`：纯前端基础规则模式，GitHub Pages 可直接使用，不需要任何 API Key。
+
+`local`：本地 Ollama 模式，只在开发电脑上有效，默认地址：
 
 ```text
 http://localhost:11434/v1
 ```
 
-这个能力只在访问者自己的电脑本地可用，不属于 GitHub Pages 公网功能。别人打开线上页面时，不能直接调用你电脑上的 Ollama 服务。
+这个能力只在访问者自己的电脑本地可用，不属于 GitHub Pages 公网功能。别人打开线上页面时，不能直接调用你电脑上的 Ollama 服务。线上页面会自动回退到基础模式，不会因为 `localhost` 请求失败影响页面使用。
+
+`cloud`：云端球童模式，前端只请求：
+
+```text
+/api/caddy
+```
+
+不要把任何真实 API Key 写进前端代码。正式上线时需要额外部署后端接口 `/api/caddy`，由后端安全地调用大模型服务。GitHub Pages 是静态站点，如果没有单独部署后端接口，只能使用基础模式，或把 `cloudEndpoint` 配置为你自己已经部署好的 HTTPS 后端地址。
+
+## Ollama 本地大模型
+
+本地开发时可以继续使用 Ollama：
+
+```text
+http://localhost:11434/v1
+```
+
+推荐先在本机确认 Ollama 已启动，并安装兼容 OpenAI `/v1/chat/completions` 的模型。没有 Ollama 或模型不可用时，数字球童会自动切换到基础规则建议。
 
 ## 大文件建议
 

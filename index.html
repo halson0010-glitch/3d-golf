@@ -130,6 +130,58 @@
       </div>
       <button id="list-close" type="button">&times;</button>
     </div>
+    <div id="list-tools">
+      <label class="list-search">
+        <span>搜索</span>
+        <input id="list-search" type="search" placeholder="球场名 / 省份 / 城市 / 山地">
+      </label>
+      <div id="list-nearby-tools" hidden>
+        <div id="nearby-status-cards">
+          <span id="nearby-status">定位状态：未开启</span>
+          <span id="nearby-count">最近球场：--</span>
+          <span id="nearby-distance">最近距离：--</span>
+        </div>
+        <div class="nearby-range-row" aria-label="附近球场范围">
+          <button class="active" type="button" data-nearby-range="100">100km 内</button>
+          <button type="button" data-nearby-range="300">300km 内</button>
+          <button type="button" data-nearby-range="all">全国</button>
+        </div>
+        <label class="nearby-city-select">
+          <span>手动城市</span>
+          <select id="nearby-city-select"></select>
+        </label>
+      </div>
+      <div class="list-filter-grid">
+        <label>
+          <span>省份 / 区域</span>
+          <select id="list-province-filter"></select>
+        </label>
+        <label>
+          <span>球场类型</span>
+          <select id="list-type-filter"></select>
+        </label>
+        <label>
+          <span>难度</span>
+          <select id="list-difficulty-filter"></select>
+        </label>
+        <label>
+          <span>排序</span>
+          <select id="list-sort-filter">
+            <option value="recommend">综合推荐</option>
+            <option value="distance">距离最近</option>
+            <option value="match">匹配度最高</option>
+            <option value="difficultyAsc">难度从低到高</option>
+            <option value="difficultyDesc">难度从高到低</option>
+          </select>
+        </label>
+      </div>
+      <div class="list-toggle-row">
+        <label><input id="list-suitable-filter" type="checkbox"> 适合我</label>
+        <label><input id="list-video-filter" type="checkbox"> 有实景视频</label>
+        <label><input id="list-model-filter" type="checkbox"> 独立 3D 模型</label>
+      </div>
+      <p id="list-filter-note"></p>
+    </div>
     <div id="list-content"></div>
   </aside>
 
@@ -181,7 +233,7 @@
         <div id="external-map-status">正在准备实景三维地图</div>
       </div>
       <div id="photo-detail" aria-hidden="true">
-        <img id="photo-detail-image" alt="球场实景细节" />
+        <img id="photo-detail-image" alt="3D 近景快照" />
         <video id="photo-detail-video" playsinline muted loop controls preload="metadata"></video>
         <div id="photo-detail-caption">
           <strong id="photo-detail-title"></strong>
@@ -212,6 +264,13 @@
             <strong id="course-summary"></strong>
           </div>
         </div>
+        <div id="weather-risk-card" hidden>
+          <div>
+            <span>天气与打球风险</span>
+            <strong id="weather-risk-summary">正在准备天气风险</strong>
+          </div>
+          <p id="weather-risk-detail"></p>
+        </div>
         <div id="course-tabs" role="tablist" aria-label="球场资料">
           <button class="course-tab active" type="button" data-course-tab="terrain">地形图</button>
           <button class="course-tab" type="button" data-course-tab="environment">周围环境</button>
@@ -230,18 +289,50 @@
         </div>
         <div id="caddy-bubble">
           <div id="bubble-accent"></div>
-          <p id="caddy-text"></p>
+          <div id="caddy-text"></div>
         </div>
       </div>
       <div id="caddy-controls">
         <div id="caddy-modes">
           <button class="caddy-mode active" type="button" data-caddy-mode="strategy">球场攻略</button>
           <button class="caddy-mode" type="button" data-caddy-mode="club">选杆建议</button>
+          <button class="caddy-mode" type="button" data-caddy-mode="fix">失误修正</button>
           <button class="caddy-mode" type="button" data-caddy-mode="training">训练计划</button>
           <button class="caddy-mode" type="button" data-caddy-mode="routine">赛前清单</button>
+          <button class="caddy-mode" type="button" data-caddy-mode="mental">心理球童</button>
+          <button class="caddy-mode" type="button" data-caddy-mode="bag">球包配置</button>
         </div>
-        <textarea id="caddy-note" maxlength="120" placeholder="补充当天风向、身体状态、距离、常见失误等"></textarea>
-        <button id="caddy-ask" type="button">让球童重新分析</button>
+        <div id="caddy-runtime-status" aria-live="polite">当前模式：基础模式</div>
+        <textarea id="caddy-note" maxlength="180" placeholder="补充现场条件：风向、果岭速度、当天身体状态、球位、常见失误等"></textarea>
+        <details id="caddy-bag-panel">
+          <summary>
+            <span>我的球包</span>
+            <em id="caddy-bag-status">未保存</em>
+          </summary>
+          <div id="caddy-bag-grid">
+            <label><span>Driver</span><input data-bag-club="driver" type="number" min="80" max="360" inputmode="numeric" placeholder="230"></label>
+            <label><span>3W</span><input data-bag-club="wood3" type="number" min="70" max="330" inputmode="numeric" placeholder="205"></label>
+            <label><span>5W</span><input data-bag-club="wood5" type="number" min="70" max="310" inputmode="numeric" placeholder="190"></label>
+            <label><span>Hybrid</span><input data-bag-club="hybrid" type="number" min="60" max="290" inputmode="numeric" placeholder="175"></label>
+            <label><span>5i</span><input data-bag-club="i5" type="number" min="50" max="260" inputmode="numeric" placeholder="165"></label>
+            <label><span>6i</span><input data-bag-club="i6" type="number" min="50" max="240" inputmode="numeric" placeholder="155"></label>
+            <label><span>7i</span><input data-bag-club="i7" type="number" min="40" max="220" inputmode="numeric" placeholder="145"></label>
+            <label><span>8i</span><input data-bag-club="i8" type="number" min="40" max="210" inputmode="numeric" placeholder="135"></label>
+            <label><span>9i</span><input data-bag-club="i9" type="number" min="30" max="190" inputmode="numeric" placeholder="125"></label>
+            <label><span>PW</span><input data-bag-club="pw" type="number" min="20" max="170" inputmode="numeric" placeholder="110"></label>
+            <label><span>AW</span><input data-bag-club="aw" type="number" min="20" max="150" inputmode="numeric" placeholder="95"></label>
+            <label><span>SW</span><input data-bag-club="sw" type="number" min="10" max="130" inputmode="numeric" placeholder="75"></label>
+            <label class="putter-note"><span>Putter 备注</span><input data-bag-club="putter" type="text" maxlength="50" placeholder="例如：长推容易短"></label>
+          </div>
+          <div id="caddy-bag-actions">
+            <button id="caddy-bag-save" type="button">保存球包</button>
+            <button id="caddy-bag-reset" type="button">清空</button>
+          </div>
+        </details>
+        <div id="caddy-action-row">
+          <button id="caddy-ask" type="button">重新分析</button>
+          <button id="caddy-copy" type="button">复制建议</button>
+        </div>
       </div>
     </div>
   </div>
@@ -301,11 +392,12 @@
     };
   </script>
   <script type="module">
-    import("./main.js?v=modular-main-20260521").catch((error) => {
+    import("./main.js?v=marker-weather-20260521").catch((error) => {
       console.error(error);
+      const detail = error?.message ? ` 错误信息：${error.message}` : "";
       window.showPageError?.(
         "Three.js 或主程序加载失败",
-        "页面依赖 Three.js CDN 和本地 main.js。请确认网络可访问 unpkg.com，并确认 GitHub Pages 已上传 index.html、main.js、locations.js、style.css 和 assets 目录。",
+        `页面依赖 Three.js CDN 和本地 main.js。请确认网络可访问 unpkg.com，并确认 GitHub Pages 已上传 index.html、main.js、locations.js、style.css 和 assets 目录。${detail}`,
         { fatal: true }
       );
     });

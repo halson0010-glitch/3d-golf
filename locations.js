@@ -361,6 +361,10 @@ export const golfLocations = [
     amapPoiName: "上邦高尔夫国际社区",
     amapSearchKeyword: "重庆上邦高尔夫俱乐部 上邦高尔夫国际社区",
     courseMapCenter: { lat: 29.49978, lng: 106.28269 },
+    realviewVideo: "./assets/course_realview_1.mp4",
+    demoCourseRealview: true,
+    realviewType: "demo",
+    realviewNote: "演示素材：用于验证本地实景播放流程，不代表该球场官方实拍。",
     tags: { strategy: "稳健型/控球派", terrain: "山地球场爱好者", environment: "抗风能力弱", skill: "业余高手" }
   },
   { 
@@ -381,6 +385,10 @@ export const golfLocations = [
   },
   { 
     name: "西安国际", lat: 34.185, lng: 108.845, description: "位于古都西安，远眺终南山。这座球场在厚重的历史底蕴中融入了现代高尔夫的竞技精神，气势磅礴。",
+    realviewVideo: "./assets/course_realview_2.mp4",
+    demoCourseRealview: true,
+    realviewType: "demo",
+    realviewNote: "演示素材：用于验证本地实景播放流程，不代表该球场官方实拍。",
     tags: { strategy: "进取型/重炮手", terrain: "山地球场爱好者", environment: "抗风能力弱", skill: "业余高手" }
   },
   { 
@@ -713,39 +721,124 @@ function getDefaultAmapKeyword(loc, region) {
   return `${area} ${poiName} 高尔夫球场`.trim();
 }
 
+function getDefaultCourseType(loc) {
+  const terrain = loc.tags?.terrain || "";
+  const text = `${loc.name} ${loc.description} ${terrain}`;
+  if (/荒漠|沙漠|戈壁/.test(text)) return "荒漠";
+  if (/海|滨海|海风|沙滩|半岛/.test(text)) return "海滨";
+  if (/林克斯/.test(text)) return "林克斯";
+  if (/湖|水障|水景|河|湿地|岛|溪|湾/.test(text)) return "湖景";
+  if (/城市|市区|都市|大道|商务/.test(text)) return "城市";
+  if (/森林|林地|古树|山林|果树/.test(text)) return "森林";
+  if (/山地|丘陵|雪山|峡谷|落差|山脉|高原|山庄/.test(text)) return "山地";
+  return "山地";
+}
+
+function getDefaultDifficulty(loc) {
+  if (loc.difficulty) return loc.difficulty;
+  if (loc.tags?.skill === "新手上路") return "新手友好";
+  if (loc.tags?.skill === "业余高手") return "中等";
+  if (/锦标赛|大师赛|世界杯|公开赛|巡回赛|职业|顶尖|极具挑战|极品难度/.test(`${loc.name} ${loc.description}`)) return "锦标赛";
+  if (loc.tags?.skill === "职业水准") return "挑战";
+  return "中等";
+}
+
+function getDefaultPriceLevel(loc) {
+  if (loc.priceLevel) return loc.priceLevel;
+  const text = `${loc.name} ${loc.description}`;
+  if (/顶级|极品|奢|大师赛|世界杯|佘山|观澜湖黑石|春城湖畔/.test(text)) return "顶奢";
+  if (/国际|锦标赛|度假|乡村俱乐部|球会|山居|温泉/.test(text)) return "高端";
+  if (/城市|商务|综合|公开赛/.test(text)) return "中高端";
+  return "中高端";
+}
+
+function getDefaultHazards(loc) {
+  if (Array.isArray(loc.hazards)) return loc.hazards;
+  const text = `${loc.name} ${loc.description} ${loc.tags?.terrain || ""} ${loc.tags?.environment || ""}`;
+  const hazards = [];
+  if (/水|湖|河|湾|溪|湿地|水障|岛/.test(text)) hazards.push("水障");
+  if (/沙|沙坑|沙丘|沙滩|沙地/.test(text)) hazards.push("沙坑");
+  if (/草|林|森林|树林|长草/.test(text)) hazards.push("长草");
+  if (/窄|OB|边界|丛林/.test(text)) hazards.push("OB");
+  if (/盲|落差|峡谷|山地|丘陵|起伏/.test(text)) hazards.push("盲洞", "落差");
+  if (/海风|风|滨海|海/.test(text)) hazards.push("海风");
+  return [...new Set(hazards)].slice(0, 6);
+}
+
+function getDefaultBestFor(loc, courseType, difficulty) {
+  if (Array.isArray(loc.bestFor)) return loc.bestFor;
+  const text = `${loc.name} ${loc.description}`;
+  const bestFor = [];
+  if (/商务|城市|市区|国际|俱乐部|乡村俱乐部/.test(text)) bestFor.push("商务接待");
+  if (/度假|温泉|海景|海滨|三亚|海南|亲子/.test(text)) bestFor.push(courseType === "海滨" ? "海景体验" : "亲子度假");
+  if (difficulty === "中等" || difficulty === "挑战") bestFor.push("进阶训练");
+  if (difficulty === "锦标赛" || /锦标赛|巡回赛|世界杯|大师赛|职业/.test(text)) bestFor.push("职业挑战");
+  if (/昆明|丽江|大理|避暑|高原|雪山|森林|山地/.test(text)) bestFor.push("避暑");
+  if (!bestFor.length) bestFor.push("进阶训练");
+  return [...new Set(bestFor)].slice(0, 4);
+}
+
+function normalizeArray(value, fallback = []) {
+  if (Array.isArray(value)) return value;
+  if (typeof value === "string" && value.trim()) return [value.trim()];
+  return fallback;
+}
+
+function normalizeFacilities(loc, index) {
+  return {
+    drivingRange: loc.facilities?.drivingRange ?? true,
+    hotel: loc.facilities?.hotel ?? index % 3 === 0,
+    restaurant: loc.facilities?.restaurant ?? true,
+    proShop: loc.facilities?.proShop ?? "待确认",
+    lockerRoom: loc.facilities?.lockerRoom ?? "待确认",
+    caddie: loc.facilities?.caddie ?? "待确认",
+  };
+}
+
 function enrichCourse(loc, index) {
   const region = inferRegion(loc.name);
-  const video = index % 2 === 0
-    ? "./assets/course_realview_1.mp4"
-    : "./assets/course_realview_2.mp4";
   const poiName = loc.amapPoiName || getDefaultCoursePoiName(loc.name);
   const courseMapCenter = loc.courseMapCenter || { lat: loc.lat, lng: loc.lng };
+  const explicitModel = Boolean(loc.model);
+  const courseType = loc.courseType || getDefaultCourseType(loc);
+  const difficulty = getDefaultDifficulty(loc);
   return {
     id: loc.id || createCourseId(loc.name, index),
+    name: loc.name,
     province: loc.province || region.province,
     city: loc.city || region.city,
     address: loc.address || `${region.province}${region.city ? ` ${region.city}` : ""}`,
+    lat: loc.lat,
+    lng: loc.lng,
     terrainMap: loc.terrainMap || "./assets/fallback/terrain.svg",
     satelliteImage: loc.satelliteImage || "./assets/fallback/satellite.svg",
     environmentImages: loc.environmentImages || ["./assets/fallback/environment.svg"],
-    realviewVideo: loc.realviewVideo || video,
+    realviewVideo: loc.realviewVideo || "",
     panoVideo: loc.panoVideo || "",
+    demoCourseRealview: Boolean(loc.demoCourseRealview),
+    realviewType: loc.realviewType || (loc.demoCourseRealview ? "demo" : ""),
+    realviewNote: loc.realviewNote || "",
     externalMapProvider: loc.externalMapProvider || "amap",
     externalMapUrl: loc.externalMapUrl || "",
     amapPoiName: poiName,
     amapSearchKeyword: loc.amapSearchKeyword || getDefaultAmapKeyword({ ...loc, amapPoiName: poiName }, region),
     courseMapCenter,
     mapPrecision: loc.mapPrecision || (loc.courseMapCenter ? "verified" : "estimated"),
+    difficulty,
+    priceLevel: loc.priceLevel || getDefaultPriceLevel({ ...loc, difficulty }),
+    courseType,
+    hazards: getDefaultHazards(loc),
+    bestFor: getDefaultBestFor(loc, courseType, difficulty),
+    grassType: loc.grassType || "待确认",
+    greenSpeed: loc.greenSpeed || "待确认",
+    signatureHoles: normalizeArray(loc.signatureHoles),
+    hasIndependentModel: explicitModel,
     model: loc.model || "./assets/golf_scene.glb",
     holes: loc.holes || 18,
     par: loc.par || 72,
     terrainLabel: loc.terrainLabel || loc.tags.terrain,
     environmentLabel: loc.environmentLabel || loc.tags.environment,
-    facilities: {
-      drivingRange: loc.facilities?.drivingRange ?? true,
-      hotel: loc.facilities?.hotel ?? index % 3 === 0,
-      restaurant: loc.facilities?.restaurant ?? true,
-    },
+    facilities: normalizeFacilities(loc, index),
   };
 }
 
