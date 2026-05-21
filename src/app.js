@@ -526,6 +526,8 @@ export function initGolfApp(moduleRegistry = {}) {
   const DEFAULT_CADDY_MODEL = "qwen3:8b";
   const DEFAULT_LOCAL_CADDY_BASE = "http://localhost:11434/v1";
   const DEFAULT_CLOUD_CADDY_ENDPOINT = "/api/caddy";
+  const LOCAL_CADDY_CHAT_TIMEOUT_MS = 90000;
+  const CLOUD_CADDY_CHAT_TIMEOUT_MS = 45000;
   let detectedCaddyModel = null;
   let modelDetectionStarted = false;
   let localCaddyUnavailableReason = "";
@@ -707,7 +709,7 @@ export function initGolfApp(moduleRegistry = {}) {
             },
             profile: userProfile,
           }),
-        }, 12000);
+        }, CLOUD_CADDY_CHAT_TIMEOUT_MS);
         const content = body?.advice || body?.content || body?.choices?.[0]?.message?.content;
         updateCaddyRuntimeStatus("cloud", "已连接");
         return String(content || fallback).trim();
@@ -731,13 +733,14 @@ export function initGolfApp(moduleRegistry = {}) {
     }
   
     try {
-      updateCaddyRuntimeStatus("local", `使用 ${model}`);
+      updateCaddyRuntimeStatus("local", `使用 ${model} · 首次加载可能较慢`);
       const localBaseUrl = normalizeApiBase(appConfig.localBaseUrl, DEFAULT_LOCAL_CADDY_BASE);
       const body = await fetchJsonWithTimeout(`${localBaseUrl}/chat/completions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           model,
+          stream: false,
           temperature: 0.72,
           max_tokens: 560,
           messages: [
@@ -745,7 +748,7 @@ export function initGolfApp(moduleRegistry = {}) {
             { role: "user", content: buildCaddyPrompt(loc, mode, note) },
           ],
         }),
-      }, 16000);
+      }, LOCAL_CADDY_CHAT_TIMEOUT_MS);
       const content = body?.choices?.[0]?.message?.content?.trim();
       updateCaddyRuntimeStatus("local", `使用 ${model}`);
       return content || fallback;
@@ -3264,6 +3267,7 @@ export function initGolfApp(moduleRegistry = {}) {
   
   
   const overlay = document.getElementById("overlay");
+  const cardPanel = document.getElementById("card");
   const cardTitle = document.getElementById("card-title");
   const cardDesc = document.getElementById("card-desc");
   const cardClose = document.getElementById("card-close");
@@ -3739,6 +3743,15 @@ export function initGolfApp(moduleRegistry = {}) {
       caddyText.insertAdjacentHTML("beforeend", `<span class="caddy-source">${escapeHtml(source)}</span>`);
     }
   }
+
+  function scrollCaddyResultIntoView() {
+    if (!cardPanel || !caddyBubble) return;
+    const targetTop = Math.max(0, caddyBubble.offsetTop - 18);
+    cardPanel.scrollTo({
+      top: targetTop,
+      behavior: prefersReducedMotion ? "auto" : "smooth",
+    });
+  }
   
   function renderCourseTab(tabName = "terrain") {
     if (selectedCourseIndex === null || !courseTabPanel) return;
@@ -3808,22 +3821,32 @@ export function initGolfApp(moduleRegistry = {}) {
     const loc = golfLocations[selectedCourseIndex];
     const note = caddyNote.value.trim();
     const requestId = ++caddyRequestId;
+    const caddyWaitHint = getConfiguredCaddyMode() === "local"
+      ? "本地模型首次加载可能需要 30-90 秒，请稍候；完成后会自动显示在这里。"
+      : "数字球童正在结合档案、球场、距离、天气、球包和现场补充重新分析...";
     caddyText.innerHTML = `
       <section class="caddy-advice-card loading">
         <strong>正在分析</strong>
-        <p>数字球童正在结合档案、球场、距离、天气、球包和现场补充重新分析...</p>
+        <p>${escapeHtml(caddyWaitHint)}</p>
       </section>
     `;
     updateCaddyRuntimeStatus(getConfiguredCaddyMode(), "准备分析");
     caddyBubble.scrollTop = 0;
+    scrollCaddyResultIntoView();
   
     getCaddyAdviceFromLLM(loc, selectedCaddyMode, note).then((advice) => {
       if (requestId === caddyRequestId) {
         renderCaddyAdvice(advice);
         requestAnimationFrame(() => {
           caddyBubble.scrollTop = 0;
+          scrollCaddyResultIntoView();
         });
       }
+    }).catch(() => {
+      if (requestId !== caddyRequestId) return;
+      renderCaddyAdvice(`${getCaddyAdvice(loc, selectedCaddyMode, note)}\n【来源】数字球童请求异常，已切换基础建议。`);
+      updateCaddyRuntimeStatus("basic", "请求异常，已回退");
+      requestAnimationFrame(scrollCaddyResultIntoView);
     });
   }
   
