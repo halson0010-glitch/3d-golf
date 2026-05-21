@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
@@ -56,6 +56,22 @@ function readText(path) {
   return readFileSync(filePath(path), "utf8");
 }
 
+function collectFiles(dir, extension, output = []) {
+  const fullDir = filePath(dir);
+  if (!existsSync(fullDir)) return output;
+  readdirSync(fullDir, { withFileTypes: true }).forEach((entry) => {
+    const child = `${dir}/${entry.name}`;
+    if (entry.isDirectory()) {
+      collectFiles(child, extension, output);
+      return;
+    }
+    if (entry.isFile() && entry.name.endsWith(extension)) {
+      output.push(child);
+    }
+  });
+  return output;
+}
+
 async function checkLocations() {
   try {
     const moduleUrl = pathToFileURL(filePath("locations.js")).href;
@@ -104,7 +120,7 @@ async function checkLocations() {
 }
 
 function checkAbsoluteAssetPaths() {
-  const files = ["index.html", "main.js", "locations.js", "style.css"];
+  const files = ["index.html", "main.js", "locations.js", "style.css", ...collectFiles("src", ".js")];
   const pattern = /(^|["'`(\s])\/assets\//g;
   files.forEach((file) => {
     const content = readText(file);
