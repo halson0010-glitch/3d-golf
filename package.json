@@ -5,6 +5,7 @@
   "type": "module",
   "description": "中国高尔夫地图 — 3D 交互式高尔夫球场分布图",
   "scripts": {
+    "check": "node scripts/check.mjs",
     "dev": "node local-server.mjs",
     "start": "node local-server.mjs"
   }
