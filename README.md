@@ -118,6 +118,15 @@ http://localhost:11434/v1
 
 推荐先在本机确认 Ollama 已启动，并安装兼容 OpenAI `/v1/chat/completions` 的模型。没有 Ollama 或模型不可用时，数字球童会自动切换到基础规则建议。
 
+常用本地模型安装示例：
+
+```bash
+ollama pull qwen3:8b
+ollama serve
+```
+
+如果 `ollama list` 为空，页面会显示“本地 Ollama 未安装模型”，并继续使用基础模式。
+
 ## 大文件建议
 
 `assets/golf_scene.glb` 文件较大，当前已经改为进入球场 3D 模型时按需加载，不再阻塞首页。后续如果继续增大模型或视频资源，建议放到稳定 CDN 或对象存储中，再通过 HTTPS 地址加载。

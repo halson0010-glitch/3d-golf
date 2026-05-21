@@ -528,6 +528,7 @@ export function initGolfApp(moduleRegistry = {}) {
   const DEFAULT_CLOUD_CADDY_ENDPOINT = "/api/caddy";
   let detectedCaddyModel = null;
   let modelDetectionStarted = false;
+  let localCaddyUnavailableReason = "";
 
   function normalizeCaddyMode(mode = appConfig.caddyMode) {
     return ["local", "cloud", "basic"].includes(mode) ? mode : "basic";
@@ -586,10 +587,17 @@ export function initGolfApp(moduleRegistry = {}) {
       const preferred = localStorage.getItem(CADDY_MODEL_KEY) || DEFAULT_CADDY_MODEL;
       const body = await fetchJsonWithTimeout(`${localBaseUrl}/models`, {}, 1600);
       const models = Array.isArray(body.data) ? body.data.map((m) => m.id).filter(Boolean) : [];
+      if (!models.length) {
+        detectedCaddyModel = null;
+        localCaddyUnavailableReason = "本地 Ollama 未安装模型";
+        return null;
+      }
       detectedCaddyModel = models.includes(preferred) ? preferred : models[0] || null;
+      localCaddyUnavailableReason = "";
       return detectedCaddyModel;
     } catch {
       detectedCaddyModel = null;
+      localCaddyUnavailableReason = "本地 Ollama 未连接";
       return null;
     } finally {
       modelDetectionStarted = false;
@@ -717,8 +725,9 @@ export function initGolfApp(moduleRegistry = {}) {
     const model = await resolveCaddyModel();
   
     if (!model) {
-      updateCaddyRuntimeStatus("basic", "本地 Ollama 未连接");
-      return `${fallback}\n【来源】本地 Ollama 未连接，已启用基础模式。`;
+      const reason = localCaddyUnavailableReason || "本地 Ollama 未连接";
+      updateCaddyRuntimeStatus("basic", reason);
+      return `${fallback}\n【来源】${reason}，已启用基础模式。`;
     }
   
     try {

@@ -1049,7 +1049,31 @@ body.overlay-open #hint {
   pointer-events: auto;
   animation: panelIn 0.4s ease-out 0.05s both;
   position: relative;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+}
+
+#card::-webkit-scrollbar,
+#caddy-bubble::-webkit-scrollbar,
+#card-desc::-webkit-scrollbar {
+  width: 8px;
+}
+
+#card::-webkit-scrollbar-track,
+#caddy-bubble::-webkit-scrollbar-track,
+#card-desc::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.035);
+  border-radius: 999px;
+}
+
+#card::-webkit-scrollbar-thumb,
+#caddy-bubble::-webkit-scrollbar-thumb,
+#card-desc::-webkit-scrollbar-thumb {
+  background: rgba(180, 230, 255, 0.45);
+  border-radius: 999px;
 }
 
 @keyframes panelIn {
