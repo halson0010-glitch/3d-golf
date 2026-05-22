@@ -2,7 +2,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { appConfig } from "../config.js";
-import { golfLocations } from "../locations.js?v=marker-weather-20260521";
+import { golfLocations } from "../locations.js?v=mobile-marker-bag-20260522";
 import { getCourseWeather, getWeatherModeLabel } from "./weather.js";
 
 export function initGolfApp(moduleRegistry = {}) {
@@ -63,6 +63,7 @@ export function initGolfApp(moduleRegistry = {}) {
   let selectedCourseIndex = null;
   const NEARBY_CITY_STORAGE_KEY = "golf-nearby-city";
   const CADDY_BAG_STORAGE_KEY = "golf-caddy-bag-v1";
+  const DEFAULT_COURSE_MODEL_URL = "./assets/golf_scene.glb";
   const NEARBY_CITIES = [
     { name: "北京", lat: 39.9042, lng: 116.4074 },
     { name: "上海", lat: 31.2304, lng: 121.4737 },
@@ -160,6 +161,7 @@ export function initGolfApp(moduleRegistry = {}) {
       profileSubmit.disabled = true;
     }
     profileSubmit.textContent = userProfile ? "更新专属数字球童" : "生成专属数字球童";
+    hydrateCaddyBagInputs();
     profileModal.classList.remove("hidden");
   }
   
@@ -330,6 +332,7 @@ export function initGolfApp(moduleRegistry = {}) {
       weatherText,
       bagText: bagProfile.text,
       bagSaved: bagProfile.saved,
+      bagEstimated: bagProfile.estimated,
       bagData: bagProfile.data,
       noteText,
       courseType: loc.courseType || loc.tags.terrain,
@@ -407,11 +410,21 @@ export function initGolfApp(moduleRegistry = {}) {
     return Object.entries(data || {}).some(([key, value]) => key === "putter" ? Boolean(value) : Number(value) > 0);
   }
 
+  function getBagInputKey(input) {
+    return input?.dataset?.bagClub || input?.dataset?.profileBagClub || "";
+  }
+
+  function sameBagData(a = {}, b = {}) {
+    return JSON.stringify(normalizeBagData(a)) === JSON.stringify(normalizeBagData(b));
+  }
+
   function getCurrentBagInputData() {
     const data = {};
     caddyBagInputs.forEach((input) => {
-      const key = input.dataset.bagClub;
-      data[key] = key === "putter" ? input.value.trim() : input.value;
+      const key = getBagInputKey(input);
+      if (!key) return;
+      const value = key === "putter" ? input.value.trim() : input.value;
+      if (value !== "" || data[key] === undefined) data[key] = value;
     });
     return normalizeBagData(data);
   }
@@ -430,13 +443,14 @@ export function initGolfApp(moduleRegistry = {}) {
 
   function getCaddyBagProfile() {
     const current = getCurrentBagInputData();
+    const estimated = normalizeBagData(estimateGolfBagFromDrive());
     if (hasCaddyBagValues(current)) {
       const savedBag = normalizeBagData(readSavedCaddyBag() || {});
-      const saved = hasCaddyBagValues(savedBag) && JSON.stringify(savedBag) === JSON.stringify(current);
-      return { saved, data: current, text: formatGolfBag(current) };
+      const saved = hasCaddyBagValues(savedBag) && sameBagData(savedBag, current);
+      const estimatedSource = !saved && sameBagData(current, estimated);
+      return { saved, estimated: estimatedSource, data: current, text: formatGolfBag(current, { estimated: estimatedSource }) };
     }
-    const estimated = estimateGolfBagFromDrive();
-    return { saved: false, data: estimated, text: formatGolfBag(estimated, { estimated: true }) };
+    return { saved: false, estimated: true, data: estimated, text: formatGolfBag(estimated, { estimated: true }) };
   }
   
   // ─── Dialogue Decision Tree v3.0 ────────────────────────────
@@ -450,12 +464,19 @@ export function initGolfApp(moduleRegistry = {}) {
     if (mode === "club") {
       const clubAction = c.bagSaved
         ? `按你的已保存球包距离「${c.bagText}」分三档执行：Driver/3W 只用于宽落点，Hybrid/长铁负责安全推进，PW/AW/SW 留完整挥杆距离攻果岭。`
-        : `先按开球档案估算球包「${c.bagText}」执行：Driver 控制开球，木杆/Hybrid 做推进，7i-PW 找标准落点，AW/SW 负责避开短边。保存真实球包后会按你的码数细化。`;
+        : c.bagEstimated
+          ? `先按开球档案估算球包「${c.bagText}」执行：Driver 控制开球，木杆/Hybrid 做推进，7i-PW 找标准落点，AW/SW 负责避开短边。保存真实球包后会按你的码数细化。`
+          : `按你本次输入但尚未保存的球包「${c.bagText}」临时分析：宽落点用 Driver/3W，障碍前用 Hybrid/长铁或中铁铺到完整挖起杆距离。`;
+      const clubNext = c.bagSaved
+        ? "已读取已保存球包；如果当天状态有变化，只调整 8 成力量的可重复距离。"
+        : c.bagEstimated
+          ? "这是按开球距离生成的估算球包。保存“我的球包”后，我会按真实码数细化选杆。"
+          : "这次建议已读取本次输入的球包。点击保存后，刷新页面和下次选杆建议都会继续使用这套距离。";
       return buildCaddySections({
         judgment: `${c.distanceText}${loc.name} 是「${c.courseType}」球场，主要障碍是${c.hazardsText}。你的开球档案为「${c.drive}」，不需要每洞硬上一号木。`,
         action: clubAction,
         risk: `${c.miss} 是本场主要变量，遇到${c.hazardsText}时宁可少打 15-25 码，也不要追求旗杆方向。${weather}${c.noteText}`,
-        next: c.bagSaved ? "已读取已保存球包；如果当天状态有变化，只调整 8 成力量的可重复距离。" : "这是按开球距离生成的估算球包。保存“我的球包”后，我会按真实码数细化选杆。",
+        next: clubNext,
       });
     }
 
@@ -497,8 +518,12 @@ export function initGolfApp(moduleRegistry = {}) {
 
     if (mode === "bag") {
       return buildCaddySections({
-        judgment: c.bagSaved ? `已读取你的球包距离：${c.bagText}。本场关键是用熟悉码数避开${c.hazardsText}。` : `还没有保存球包，当前使用默认估算：${c.bagText}。本场需要一个安全开球杆、一个球道推进杆和两个短杆距离。`,
-        action: c.bagSaved ? "把球包分成三档：开球安全档、150 码内上果岭档、80 码内救分档。风大或水障前，优先选择能停在完整挥杆距离的球杆。" : "建议在“我的球包”里保存 Driver、3W/5W、Hybrid、铁杆和挖起杆距离，再按真实码数做策略。",
+        judgment: c.bagSaved
+          ? `已读取你的球包距离：${c.bagText}。本场关键是用熟悉码数避开${c.hazardsText}。`
+          : c.bagEstimated
+            ? `还没有保存球包，当前使用默认估算：${c.bagText}。本场需要一个安全开球杆、一个球道推进杆和两个短杆距离。`
+            : `当前读取的是你刚输入但尚未保存的球包：${c.bagText}。这套距离可以先用于本次临场分析。`,
+        action: c.bagSaved || !c.bagEstimated ? "把球包分成三档：开球安全档、150 码内上果岭档、80 码内救分档。风大或水障前，优先选择能停在完整挥杆距离的球杆。" : "建议在“我的球包”里保存 Driver、3W/5W、Hybrid、铁杆和挖起杆距离，再按真实码数做策略。",
         risk: `${weather}不要用“最远距离”做选杆依据，用你 8 成力量能重复的距离做比赛码数。${c.noteText}`,
         next: c.bagSaved ? "下次刷新页面后仍会读取这套球包；如当天风大或身体疲劳，请在现场补充里写明。" : "保存球包后重新分析，选杆建议会明显按你的球杆距离调整。",
       });
@@ -998,6 +1023,7 @@ export function initGolfApp(moduleRegistry = {}) {
   const orangeTex = createGlowTexture(255, 170, 50, 0.75);
   const cyanTex = createGlowTexture(0, 255, 220, 0.9);
   const blueRingTex = createGlowTexture(80, 230, 255, 0.76);
+  const modelRingTex = createGlowTexture(176, 145, 255, 0.72);
   const cameraBadgeTex = createCameraBadgeTexture();
   let markerContainer;
   
@@ -1064,21 +1090,36 @@ export function initGolfApp(moduleRegistry = {}) {
       cameraBadge.scale.set(0.018, 0.018, 1);
       markerContainer.add(cameraBadge);
 
+      const modelRingMat = new THREE.SpriteMaterial({
+        map: modelRingTex,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        transparent: true,
+        opacity: hasCourseIndependentModel(loc) ? 0.36 : 0,
+      });
+      const modelRing = new THREE.Sprite(modelRingMat);
+      modelRing.position.copy(pos.clone().add(pos.clone().normalize().multiplyScalar(0.012)));
+      modelRing.scale.set(0.05, 0.05, 1);
+      markerContainer.add(modelRing);
+
       dots.push({
         dot,
         hit,
         glow,
         nearbyRing,
         cameraBadge,
+        modelRing,
         dotMat,
         glowMat,
         nearbyRingMat,
         cameraBadgeMat,
+        modelRingMat,
         basePos,
         pillar: null,
         recommended: false,
         nearby: false,
         realview: hasCourseLocalRealview(loc),
+        model: hasCourseIndependentModel(loc),
       });
     });
   
@@ -1138,6 +1179,7 @@ export function initGolfApp(moduleRegistry = {}) {
       m.recommended = recommended;
       m.nearby = nearby;
       m.realview = hasCourseLocalRealview(loc);
+      m.model = hasCourseIndependentModel(loc);
 
       if (selected) {
         m.dotMat.color.set(0xffffff);
@@ -1165,6 +1207,7 @@ export function initGolfApp(moduleRegistry = {}) {
         m.nearbyRingMat.opacity = nearby ? 0.42 : 0;
       }
       m.cameraBadgeMat.opacity = m.realview ? 0.88 : 0;
+      m.modelRingMat.opacity = m.model ? 0.34 : 0;
     });
   }
   
@@ -1600,11 +1643,13 @@ export function initGolfApp(moduleRegistry = {}) {
   controls.touches.ONE = THREE.TOUCH.ROTATE;
   controls.touches.TWO = THREE.TOUCH.DOLLY_ROTATE;
   let earthUserInteracting = false;
+  let lastEarthInteractionEnd = 0;
   controls.addEventListener("start", () => {
     earthUserInteracting = true;
   });
   controls.addEventListener("end", () => {
     earthUserInteracting = false;
+    lastEarthInteractionEnd = performance.now();
   });
   
   const chinaDir = latLngToVec3(32, 108, 1);
@@ -2593,7 +2638,6 @@ export function initGolfApp(moduleRegistry = {}) {
   let embeddedAmap = null;
   const amapCourseResolutionCache = new Map();
   const courseTerrainTextureCache = new Map();
-  const DEFAULT_COURSE_MODEL_URL = "./assets/golf_scene.glb";
   const courseModelCache = new Map();
   let activeModelLoadToken = 0;
   
@@ -3288,9 +3332,14 @@ export function initGolfApp(moduleRegistry = {}) {
   const caddyRuntimeStatus = document.getElementById("caddy-runtime-status");
   const caddyBagPanel = document.getElementById("caddy-bag-panel");
   const caddyBagStatus = document.getElementById("caddy-bag-status");
-  const caddyBagInputs = document.querySelectorAll("[data-bag-club]");
+  const profileBagStatus = document.getElementById("profile-bag-status");
+  const caddyBagInputs = document.querySelectorAll("[data-bag-club], [data-profile-bag-club]");
   const caddyBagSave = document.getElementById("caddy-bag-save");
+  const caddyBagDefault = document.getElementById("caddy-bag-default");
   const caddyBagReset = document.getElementById("caddy-bag-reset");
+  const profileBagSave = document.getElementById("profile-bag-save");
+  const profileBagDefault = document.getElementById("profile-bag-default");
+  const profileBagReset = document.getElementById("profile-bag-reset");
   const caddyAsk = document.getElementById("caddy-ask");
   const caddyCopy = document.getElementById("caddy-copy");
   const caddyAvatarImage = document.querySelector("#caddy-avatar img");
@@ -3320,23 +3369,50 @@ export function initGolfApp(moduleRegistry = {}) {
     );
   });
 
-  function updateCaddyBagStatus(saved = Boolean(readSavedCaddyBag())) {
-    if (!caddyBagStatus) return;
-    caddyBagStatus.textContent = saved ? "已保存" : "未保存";
-    caddyBagStatus.classList.toggle("saved", saved);
+  function updateCaddyBagStatus(saved = Boolean(readSavedCaddyBag()), estimated = !saved && !hasCaddyBagValues(getCurrentBagInputData())) {
+    const text = saved ? "已保存" : estimated ? "估算中" : "未保存";
+    [caddyBagStatus, profileBagStatus].forEach((statusEl) => {
+      if (!statusEl) return;
+      statusEl.textContent = text;
+      statusEl.classList.toggle("saved", saved);
+    });
   }
 
   function hydrateCaddyBagInputs() {
-    const saved = readSavedCaddyBag();
-    const estimated = estimateGolfBagFromDrive();
+    const saved = normalizeBagData(readSavedCaddyBag() || {});
+    const hasSaved = hasCaddyBagValues(saved);
+    const estimated = normalizeBagData(estimateGolfBagFromDrive());
     caddyBagInputs.forEach((input) => {
-      const key = input.dataset.bagClub;
+      const key = getBagInputKey(input);
+      if (!key) return;
       input.placeholder = key === "putter"
         ? "例如：长推容易短"
         : String(estimated[key] || "");
-      input.value = saved?.[key] ?? "";
+      input.value = hasSaved ? (saved[key] || "") : "";
     });
-    updateCaddyBagStatus(Boolean(saved));
+    updateCaddyBagStatus(hasSaved, !hasSaved);
+  }
+
+  function syncBagInputValue(key, value, sourceInput) {
+    caddyBagInputs.forEach((input) => {
+      if (input === sourceInput || getBagInputKey(input) !== key) return;
+      input.value = value;
+    });
+  }
+
+  function fillEstimatedCaddyBagInputs() {
+    const estimated = normalizeBagData(estimateGolfBagFromDrive());
+    localStorage.removeItem(CADDY_BAG_STORAGE_KEY);
+    caddyBagInputs.forEach((input) => {
+      const key = getBagInputKey(input);
+      if (!key) return;
+      input.value = estimated[key] || "";
+    });
+    updateCaddyBagStatus(false, true);
+  }
+
+  function refreshCaddyForBagChange() {
+    if (selectedCourseIndex !== null && (selectedCaddyMode === "club" || selectedCaddyMode === "bag")) refreshCaddyAdvice();
   }
 
   function saveCaddyBag() {
@@ -3348,7 +3424,7 @@ export function initGolfApp(moduleRegistry = {}) {
     }
     localStorage.setItem(CADDY_BAG_STORAGE_KEY, JSON.stringify(data));
     hydrateCaddyBagInputs();
-    if (selectedCourseIndex !== null && (selectedCaddyMode === "club" || selectedCaddyMode === "bag")) refreshCaddyAdvice();
+    refreshCaddyForBagChange();
   }
 
   function clearCaddyBag() {
@@ -3357,13 +3433,27 @@ export function initGolfApp(moduleRegistry = {}) {
       input.value = "";
     });
     hydrateCaddyBagInputs();
-    if (selectedCourseIndex !== null && (selectedCaddyMode === "club" || selectedCaddyMode === "bag")) refreshCaddyAdvice();
+    refreshCaddyForBagChange();
+  }
+
+  function restoreDefaultCaddyBag() {
+    fillEstimatedCaddyBagInputs();
+    refreshCaddyForBagChange();
   }
 
   caddyBagSave?.addEventListener("click", saveCaddyBag);
+  caddyBagDefault?.addEventListener("click", restoreDefaultCaddyBag);
   caddyBagReset?.addEventListener("click", clearCaddyBag);
+  profileBagSave?.addEventListener("click", saveCaddyBag);
+  profileBagDefault?.addEventListener("click", restoreDefaultCaddyBag);
+  profileBagReset?.addEventListener("click", clearCaddyBag);
   caddyBagInputs.forEach((input) => {
-    input.addEventListener("input", () => updateCaddyBagStatus(false));
+    input.addEventListener("input", () => {
+      syncBagInputValue(getBagInputKey(input), input.value, input);
+      const current = getCurrentBagInputData();
+      const estimated = sameBagData(current, estimateGolfBagFromDrive());
+      updateCaddyBagStatus(false, estimated);
+    });
   });
   hydrateCaddyBagInputs();
   if (isGithubPagesStaticHost() && getConfiguredCaddyMode() === "local") {
@@ -4063,6 +4153,7 @@ export function initGolfApp(moduleRegistry = {}) {
       markers[index]?.recommended ? "推荐" : null,
       markers[index]?.nearby ? "附近" : null,
       markers[index]?.realview ? "有实景" : null,
+      markers[index]?.model ? "独立模型" : null,
     ].filter(Boolean).join(" · ");
     return `
       <strong>${escapeHtml(loc.name)}</strong>
@@ -4103,7 +4194,7 @@ export function initGolfApp(moduleRegistry = {}) {
       const loc = golfLocations[i];
       const selected = selectedCourseIndex === i;
       const hovered = hoveredGlobeIndex === i;
-      const priority = selected || hovered || m.recommended || m.nearby || m.realview;
+      const priority = selected || hovered || m.recommended || m.nearby || m.realview || m.model;
       const onFrontSide = m.basePos.clone().normalize().dot(cameraDir) > -0.03;
       const spreadBucket = (i * 37 + Math.round(loc.lat * 10) + Math.round(loc.lng * 10)) % 5;
       const clusteredOut = !priority && ((farLevel === 2 && spreadBucket !== 0) || (farLevel === 1 && spreadBucket > 2));
@@ -4113,7 +4204,7 @@ export function initGolfApp(moduleRegistry = {}) {
       const clickPulse = m.clickPulseUntil && performance.now() < m.clickPulseUntil
         ? 1 + Math.sin(time * 22) * 0.18 + 0.24
         : 1;
-      const base = selected ? 1.7 : hovered ? 1.45 : m.recommended ? 1.18 : m.nearby ? 1.04 : 0.82;
+      const base = selected ? 1.7 : hovered ? 1.45 : m.recommended ? 1.18 : m.nearby ? 1.04 : m.model ? 0.95 : 0.82;
       const scale = base * pulse * clickPulse * distanceScale;
 
       m.dot.visible = visible;
@@ -4121,6 +4212,7 @@ export function initGolfApp(moduleRegistry = {}) {
       m.glow.visible = visible;
       m.nearbyRing.visible = visible && (m.nearby || selected || hovered);
       m.cameraBadge.visible = visible && m.realview && farLevel < 2;
+      m.modelRing.visible = visible && m.model && (farLevel < 2 || selected || hovered || m.recommended);
       if (m.pillar) m.pillar.visible = visible && selected;
 
       m.dot.scale.setScalar(scale);
@@ -4128,11 +4220,13 @@ export function initGolfApp(moduleRegistry = {}) {
       m.glow.scale.set(0.022 * scale * (m.recommended ? 1.28 : 1), 0.022 * scale * (m.recommended ? 1.28 : 1), 1);
       m.nearbyRing.scale.set(0.04 * scale, 0.04 * scale, 1);
       m.cameraBadge.scale.set(0.016 * Math.max(0.9, scale), 0.016 * Math.max(0.9, scale), 1);
+      m.modelRing.scale.set(0.052 * scale * (hovered || selected ? 1.12 : 1), 0.052 * scale * (hovered || selected ? 1.12 : 1), 1);
 
       const opacityFactor = farLevel === 2 && !priority ? 0.4 : 1;
       m.glowMat.opacity = (selected ? 0.88 : m.recommended ? 0.58 : m.nearby ? 0.36 : 0.16) * opacityFactor;
       m.nearbyRingMat.opacity = visible && (m.nearby || selected || hovered) ? (selected ? 0.72 : hovered ? 0.62 : 0.42) : 0;
       m.cameraBadgeMat.opacity = visible && m.realview && farLevel < 2 ? 0.86 : 0;
+      m.modelRingMat.opacity = visible && m.model ? (selected ? 0.52 : hovered ? 0.48 : farLevel === 2 ? 0 : 0.32) : 0;
     });
   }
   
@@ -4145,7 +4239,7 @@ export function initGolfApp(moduleRegistry = {}) {
   });
 
   renderer.domElement.addEventListener("pointermove", (e) => {
-    if (globePointerActive && mouseDown.distanceTo(new THREE.Vector2(e.clientX, e.clientY)) > (globePointerType === "touch" ? 10 : 7)) {
+    if (globePointerActive && mouseDown.distanceTo(new THREE.Vector2(e.clientX, e.clientY)) > (globePointerType === "touch" ? 14 : 8)) {
       globePointerMoved = true;
       showGlobeTooltip(null);
       return;
@@ -4159,9 +4253,16 @@ export function initGolfApp(moduleRegistry = {}) {
   
   renderer.domElement.addEventListener("pointerup", (e) => {
     mouseUp.set(e.clientX, e.clientY);
-    const clickThreshold = e.pointerType === "touch" ? 10 : 7;
+    const movedDistance = mouseDown.distanceTo(mouseUp);
+    const clickThreshold = e.pointerType === "touch" ? 14 : 8;
     globePointerActive = false;
-    if (globePointerMoved || mouseDown.distanceTo(mouseUp) > clickThreshold) return;
+    if (
+      globePointerMoved
+      || movedDistance > clickThreshold
+      || (movedDistance > 2 && performance.now() - lastEarthInteractionEnd < 90)
+    ) {
+      return;
+    }
 
     const idx = findGlobeMarkerAt(e.clientX, e.clientY);
     if (idx !== null) {

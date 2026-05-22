@@ -1,35 +1,66 @@
 # 3D Golf China Map
 
-中国高尔夫球场 3D / 2D 交互静态网页。项目保持原生 HTML、CSS、ES Module 和 Three.js，不依赖 React、Vue 或 Next.js。
+3D 中国高尔夫球场地图，使用原生 HTML / CSS / ES Module / Three.js 构建。项目包含 3D 地球、中国球场点位、局部二维地图、球场 3D 模型、实景素材入口和数字球童建议功能。
 
 ## 本地运行
+
+首次运行先安装依赖：
+
+```bash
+npm install
+```
+
+启动本地静态服务：
 
 ```bash
 npm run dev
 ```
 
-默认会启动本地静态服务：
+打开：
 
 ```text
 http://localhost:5173/
 ```
 
-如果端口被占用，可以设置 `PORT` 后再启动：
+如果 `5173` 端口被占用，当前本地服务会自动尝试下一个端口。也可以手动指定端口：
 
 ```powershell
 $env:PORT="5174"
 npm run dev
 ```
 
+## 发布前检查
+
+提交或部署前运行：
+
+```bash
+npm run check
+```
+
+检查脚本会输出中文报告，包含文件存在性、球场数据、经纬度、GitHub Pages 子路径资源路径、`assets/golf_scene.glb` 大小和不应被 Git 跟踪的本地目录。关键错误会返回非 0 exit code，警告不阻塞发布。
+
 ## GitHub Pages 部署
 
-仓库发布地址：
+推荐设置：
+
+```text
+Branch: main
+Folder: / (root)
+```
+
+Pages 链接格式：
+
+```text
+https://<github-username>.github.io/<repo-name>/
+```
+
+当前仓库示例：
 
 ```text
 https://halson0010-glitch.github.io/3d-golf/
 ```
 
-GitHub Pages 使用仓库子路径 `/3d-golf/` 部署，因此项目内资源必须使用相对路径，例如：
+GitHub Pages 使用仓库子路径部署，因此资源必须使用相对路径，例如：
 
 ```text
 ./main.js
@@ -43,17 +74,25 @@ GitHub Pages 使用仓库子路径 `/3d-golf/` 部署，因此项目内资源必
 
 ## 必须上传的文件
 
-发布时至少需要上传：
+发布时至少需要保留并上传：
 
 ```text
 index.html
 main.js
 locations.js
 style.css
-local-server.mjs
-package.json
-package-lock.json
 assets/
+package.json
+```
+
+建议一并保留：
+
+```text
+package-lock.json
+local-server.mjs
+scripts/check.mjs
+config.js
+src/
 ```
 
 `assets/` 目录中当前关键资源包括：
@@ -68,65 +107,59 @@ assets/fallback/satellite.svg
 assets/fallback/environment.svg
 ```
 
-## 外部依赖说明
+## 大文件与资源加载
 
-Three.js 当前通过 importmap 使用 CDN：
+`assets/golf_scene.glb` 较大，当前已经做了懒加载：首屏不会请求高清 3D 球场模型，进入球场 3D 模型时才加载。后续如果模型或视频继续增大，建议放到 CDN 或对象存储，再通过 HTTPS 地址加载。
 
-```text
-https://unpkg.com/three@0.160.0/
-```
+页面内置轻量中文错误提示层：
 
-如果 CDN、Three.js、模型、贴图或视频加载失败，页面会显示中文错误提示，不会只留下黑屏。后续如果希望进一步提高国内访问速度，可以把 Three.js 文件下载到本项目中并改为本地相对路径。
+- Three.js CDN 加载失败：提示 `3D 引擎加载失败，请检查网络或稍后重试`
+- `golf_scene.glb` 加载失败：提示 `高清 3D 球场模型加载失败，已切换为基础地形模式`
+- 实景视频加载失败：提示 `实景素材加载失败，可使用外部地图查看`
 
-## 数字球童模式
+错误提示不会遮挡整个页面，也不会导致黑屏。
 
-数字球童现在分为三层运行模式，配置位于 `config.js`：
+## 数字球童与大模型
+
+数字球童支持本地 Ollama、云端 API 和基础规则三层模式，配置位于 `config.js`：
 
 ```js
-export const appConfig = {
-  caddyMode: "local", // local | cloud | basic
+export const APP_CONFIG = {
+  caddyMode: "auto", // "auto" | "local" | "cloud" | "basic"
   localBaseUrl: "http://localhost:11434/v1",
-  cloudEndpoint: "/api/caddy",
+  localModel: "qwen3:8b",
+  cloudEndpoint: "",
+  requestTimeoutMs: 12000,
+  weatherMode: "mock",
+  amapWeatherKey: ""
 };
 ```
 
-`basic`：纯前端基础规则模式，GitHub Pages 可直接使用，不需要任何 API Key。
+`auto`：本地开发环境优先尝试 Ollama；GitHub Pages 环境不会主动请求 `localhost`，没有云端地址时显示“云端未配置”并回退基础建议。
 
-`local`：本地 Ollama 模式，只在开发电脑上有效，默认地址：
+`local`：只尝试本地 Ollama，适合开发电脑。失败后自动回退基础建议，不显示技术错误堆栈。
 
-```text
-http://localhost:11434/v1
-```
+`cloud`：请求 `cloudEndpoint`。前端不要写任何真实 API Key；正式上线需要部署 `/api/caddy` 或外部后端，由后端安全调用大模型。
 
-这个能力只在访问者自己的电脑本地可用，不属于 GitHub Pages 公网功能。别人打开线上页面时，不能直接调用你电脑上的 Ollama 服务。线上页面会自动回退到基础模式，不会因为 `localhost` 请求失败影响页面使用。
+`basic`：只使用前端基础规则建议，不请求任何模型，GitHub Pages 可直接使用。
 
-`cloud`：云端球童模式，前端只请求：
+GitHub Pages 不能调用开发者电脑里的 Ollama。公网用户访问 `https://halson0010-glitch.github.io/3d-golf/` 时，浏览器不会去请求你的 `http://localhost:11434/v1`。
 
-```text
-/api/caddy
-```
-
-不要把任何真实 API Key 写进前端代码。正式上线时需要额外部署后端接口 `/api/caddy`，由后端安全地调用大模型服务。GitHub Pages 是静态站点，如果没有单独部署后端接口，只能使用基础模式，或把 `cloudEndpoint` 配置为你自己已经部署好的 HTTPS 后端地址。
-
-## Ollama 本地大模型
-
-本地开发时可以继续使用 Ollama：
-
-```text
-http://localhost:11434/v1
-```
-
-推荐先在本机确认 Ollama 已启动，并安装兼容 OpenAI `/v1/chat/completions` 的模型。没有 Ollama 或模型不可用时，数字球童会自动切换到基础规则建议。
-
-常用本地模型安装示例：
+本地 Ollama 示例：
 
 ```bash
 ollama pull qwen3:8b
 ollama serve
 ```
 
-如果 `ollama list` 为空，页面会显示“本地 Ollama 未安装模型”，并继续使用基础模式。
+如果 `ollama list` 为空，页面会提示本地未安装模型，并继续使用基础模式。云端模式请把大模型 Key 放在后端接口里，不要写进 `config.js`、`main.js` 或任何前端文件。
 
-## 大文件建议
+## 天气与打球风险
 
-`assets/golf_scene.glb` 文件较大，当前已经改为进入球场 3D 模型时按需加载，不再阻塞首页。后续如果继续增大模型或视频资源，建议放到稳定 CDN 或对象存储中，再通过 HTTPS 地址加载。
+天气模块支持三种模式：
+
+- `mock`：默认模式，根据球场省市和坐标生成稳定的模拟天气，用于展示温度、风力、湿度、降雨和打球风险。
+- `amap`：高德天气占位模式。前端不要写真实 Key，正式接入建议通过后端代理调用高德天气接口。
+- `disabled`：关闭天气模块，页面和数字球童继续正常运行。
+
+`amapWeatherKey` 目前保留为空。不要把真实天气 API Key 写进前端仓库或 GitHub Pages。

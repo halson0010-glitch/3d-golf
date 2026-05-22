@@ -462,6 +462,13 @@ body.overlay-open #hint {
   background: rgba(255, 255, 255, 0.025);
 }
 
+.list-search-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 10px;
+}
+
 .list-search,
 .list-filter-grid label {
   display: flex;
@@ -489,6 +496,23 @@ body.overlay-open #hint {
   box-shadow: 0 0 0 2px rgba(35, 220, 190, 0.1);
 }
 
+.list-filter-toggle {
+  height: 34px;
+  min-width: 82px;
+  padding: 0 12px;
+  border: 1px solid rgba(92, 242, 218, 0.22);
+  border-radius: 8px;
+  background: rgba(9, 25, 42, 0.76);
+  color: rgba(226, 246, 255, 0.86);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.list-filter-toggle:hover {
+  border-color: rgba(92, 242, 218, 0.48);
+  background: rgba(19, 82, 84, 0.5);
+}
+
 .list-filter-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -506,7 +530,7 @@ body.overlay-open #hint {
 
 #nearby-status-cards {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 7px;
 }
 
@@ -588,6 +612,18 @@ body.overlay-open #hint {
   line-height: 1.65;
 }
 
+.nearby-manual-panel {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(120, 200, 255, 0.1);
+}
+
+.nearby-privacy-note {
+  margin-top: 8px;
+  color: rgba(180, 224, 214, 0.74);
+  font-size: 11px;
+}
+
 .list-toggle-row {
   display: flex;
   flex-wrap: wrap;
@@ -645,6 +681,13 @@ body.overlay-open #hint {
   background: rgba(52, 104, 136, 0.26);
   border-color: rgba(120, 210, 255, 0.34);
   transform: translateY(-1px);
+}
+
+.course-row.selected,
+.course-row[aria-current="true"] {
+  background: linear-gradient(135deg, rgba(32, 120, 98, 0.34), rgba(18, 42, 68, 0.28));
+  border-color: rgba(92, 242, 218, 0.52);
+  box-shadow: 0 0 0 1px rgba(92, 242, 218, 0.1), 0 0 22px rgba(55, 213, 188, 0.12);
 }
 
 .course-row-title {
@@ -1345,6 +1388,12 @@ body.overlay-open #hint {
   cursor: not-allowed;
 }
 
+.course-realview-button.secondary {
+  border-color: rgba(180, 200, 220, 0.18);
+  background: rgba(10, 20, 34, 0.68);
+  color: rgba(225, 238, 248, 0.78);
+}
+
 .course-action-row {
   display: flex;
   flex-wrap: wrap;
@@ -1588,6 +1637,14 @@ body.overlay-open #hint {
   overflow: hidden;
 }
 
+#profile-bag-panel {
+  margin: 0 0 14px;
+  border: 1px solid rgba(130, 190, 255, 0.14);
+  border-radius: 10px;
+  background: rgba(10, 18, 32, 0.54);
+  overflow: hidden;
+}
+
 #caddy-bag-panel summary {
   min-height: 38px;
   display: flex;
@@ -1600,7 +1657,23 @@ body.overlay-open #hint {
   list-style: none;
 }
 
+#profile-bag-panel summary {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 12px;
+  color: rgba(225, 240, 255, 0.86);
+  cursor: pointer;
+  list-style: none;
+}
+
 #caddy-bag-panel summary::-webkit-details-marker {
+  display: none;
+}
+
+#profile-bag-panel summary::-webkit-details-marker {
   display: none;
 }
 
@@ -1609,24 +1682,33 @@ body.overlay-open #hint {
   font-weight: 600;
 }
 
-#caddy-bag-status {
+#profile-bag-panel summary span {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+#caddy-bag-status,
+#profile-bag-status {
   color: rgba(255, 226, 160, 0.74);
   font-size: 11px;
   font-style: normal;
 }
 
-#caddy-bag-status.saved {
+#caddy-bag-status.saved,
+#profile-bag-status.saved {
   color: rgba(110, 246, 214, 0.88);
 }
 
-#caddy-bag-grid {
+#caddy-bag-grid,
+.profile-bag-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 7px;
   padding: 0 10px 10px;
 }
 
-#caddy-bag-grid label {
+#caddy-bag-grid label,
+.profile-bag-grid label {
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -1635,7 +1717,8 @@ body.overlay-open #hint {
   font-size: 10px;
 }
 
-#caddy-bag-grid input {
+#caddy-bag-grid input,
+.profile-bag-grid input {
   width: 100%;
   height: 32px;
   padding: 0 8px;
@@ -1646,24 +1729,36 @@ body.overlay-open #hint {
   background: rgba(4, 14, 24, 0.42);
 }
 
-#caddy-bag-grid input:focus {
+#caddy-bag-grid input:focus,
+.profile-bag-grid input:focus {
   border-color: rgba(110, 220, 255, 0.45);
 }
 
-#caddy-bag-grid .putter-note {
+#caddy-bag-grid .putter-note,
+.profile-bag-grid .putter-note {
   grid-column: span 2;
 }
 
-#caddy-bag-actions {
+#caddy-bag-actions,
+.profile-bag-actions {
   display: grid;
-  grid-template-columns: 1fr 0.65fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   padding: 0 10px 10px;
 }
 
-#caddy-bag-actions button {
+#caddy-bag-actions button,
+.profile-bag-actions button {
   height: 34px;
   font-size: 12px;
+}
+
+.profile-bag-note {
+  margin: 0;
+  padding: 0 12px 10px;
+  color: rgba(204, 222, 238, 0.62);
+  font-size: 11px;
+  line-height: 1.55;
 }
 
 #caddy-note:focus {
@@ -2368,8 +2463,26 @@ body.overlay-open #hint {
     overscroll-behavior: none;
   }
 
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
   body > canvas {
     touch-action: none;
+  }
+
+  #globe-marker-tooltip {
+    z-index: 34;
+    max-width: calc(100vw - 28px);
+    padding: 10px 12px;
+    border-radius: 10px;
   }
 
   #title {
@@ -2460,6 +2573,7 @@ body.overlay-open #hint {
 
   .list-search input,
   .list-filter-grid select,
+  .list-filter-toggle,
   .nearby-city-select select,
   .nearby-prompt-city select,
   .nearby-range-row button,
@@ -2479,6 +2593,13 @@ body.overlay-open #hint {
     padding: 10px 12px 16px;
   }
 
+  #list-panel button,
+  #profile-panel button,
+  #card button,
+  #model-panel button {
+    min-height: 44px;
+  }
+
   .course-row {
     min-height: 72px;
     padding: 14px;
@@ -2492,9 +2613,9 @@ body.overlay-open #hint {
     display: none;
     flex-direction: column;
     align-items: stretch;
-    justify-content: flex-start;
+    justify-content: flex-end;
     gap: 10px;
-    padding: 14dvh 10px max(env(safe-area-inset-bottom, 0px), 10px);
+    padding: max(12dvh, 72px) 10px max(env(safe-area-inset-bottom, 0px), 10px);
     overflow-y: auto;
     overflow-x: hidden;
     scroll-snap-type: y proximity;
@@ -2515,7 +2636,7 @@ body.overlay-open #hint {
     max-width: none;
     min-width: 0;
     flex: 0 0 auto;
-    scroll-snap-align: start;
+    scroll-snap-align: end;
     border-radius: 16px;
   }
 
@@ -2590,7 +2711,9 @@ body.overlay-open #hint {
     max-height: none;
     padding: 18px 14px 16px;
     overflow: visible;
+    border-radius: 18px 18px 0 0;
     background: rgba(12, 18, 28, 0.86);
+    box-shadow: 0 -18px 44px rgba(0, 0, 0, 0.38);
   }
 
   #card::before {
@@ -2699,16 +2822,21 @@ body.overlay-open #hint {
   }
 
   #caddy-bag-panel summary,
+  #profile-bag-panel summary,
   #caddy-bag-grid input,
-  #caddy-bag-actions button {
+  .profile-bag-grid input,
+  #caddy-bag-actions button,
+  .profile-bag-actions button {
     min-height: 44px;
   }
 
-  #caddy-bag-grid {
+  #caddy-bag-grid,
+  .profile-bag-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  #caddy-bag-grid .putter-note {
+  #caddy-bag-grid .putter-note,
+  .profile-bag-grid .putter-note {
     grid-column: 1 / -1;
   }
 
@@ -2737,6 +2865,7 @@ body.overlay-open #hint {
     border-radius: 16px;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
   }
 
   .pq-options {
@@ -2752,6 +2881,13 @@ body.overlay-open #hint {
   .pq-extra-grid select,
   #profile-submit {
     min-height: 44px;
+  }
+
+  #profile-submit {
+    position: sticky;
+    bottom: 0;
+    z-index: 3;
+    box-shadow: 0 -12px 24px rgba(4, 10, 20, 0.36);
   }
 
   #map-detail-head {

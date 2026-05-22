@@ -9,7 +9,7 @@
   <link rel="dns-prefetch" href="//threejs.org">
   <link rel="dns-prefetch" href="//webst01.is.autonavi.com">
   <link rel="dns-prefetch" href="//webrd01.is.autonavi.com">
-  <link rel="stylesheet" href="./style.css?v=desktop-caddy-visible-20260522">
+  <link rel="stylesheet" href="./style.css?v=mobile-marker-bag-20260522">
 </head>
 <body>
   <div id="title">中国高尔夫球场地图</div>
@@ -116,6 +116,34 @@
           </label>
         </div>
       </div>
+
+      <details id="profile-bag-panel">
+        <summary>
+          <span>我的球包</span>
+          <em id="profile-bag-status">估算中</em>
+        </summary>
+        <div class="profile-bag-grid">
+          <label><span>Driver</span><input data-profile-bag-club="driver" type="number" min="80" max="360" inputmode="numeric" placeholder="230"></label>
+          <label><span>3W</span><input data-profile-bag-club="wood3" type="number" min="70" max="330" inputmode="numeric" placeholder="205"></label>
+          <label><span>5W</span><input data-profile-bag-club="wood5" type="number" min="70" max="310" inputmode="numeric" placeholder="190"></label>
+          <label><span>Hybrid</span><input data-profile-bag-club="hybrid" type="number" min="60" max="290" inputmode="numeric" placeholder="175"></label>
+          <label><span>5i</span><input data-profile-bag-club="i5" type="number" min="50" max="260" inputmode="numeric" placeholder="165"></label>
+          <label><span>6i</span><input data-profile-bag-club="i6" type="number" min="50" max="240" inputmode="numeric" placeholder="155"></label>
+          <label><span>7i</span><input data-profile-bag-club="i7" type="number" min="40" max="220" inputmode="numeric" placeholder="145"></label>
+          <label><span>8i</span><input data-profile-bag-club="i8" type="number" min="40" max="210" inputmode="numeric" placeholder="135"></label>
+          <label><span>9i</span><input data-profile-bag-club="i9" type="number" min="30" max="190" inputmode="numeric" placeholder="125"></label>
+          <label><span>PW</span><input data-profile-bag-club="pw" type="number" min="20" max="170" inputmode="numeric" placeholder="110"></label>
+          <label><span>AW</span><input data-profile-bag-club="aw" type="number" min="20" max="150" inputmode="numeric" placeholder="95"></label>
+          <label><span>SW</span><input data-profile-bag-club="sw" type="number" min="10" max="130" inputmode="numeric" placeholder="75"></label>
+          <label class="putter-note"><span>Putter 备注</span><input data-profile-bag-club="putter" type="text" maxlength="50" placeholder="例如：长推容易短"></label>
+        </div>
+        <div class="profile-bag-actions">
+          <button id="profile-bag-save" type="button">保存球包</button>
+          <button id="profile-bag-default" type="button">恢复默认</button>
+          <button id="profile-bag-reset" type="button">清空球包</button>
+        </div>
+        <p class="profile-bag-note">未保存时，数字球童会按你的开球距离生成估算球包；保存后刷新页面仍会保留。</p>
+      </details>
 
       <button id="profile-submit" disabled>生成专属数字球童</button>
       <p id="profile-hint">✨ 球童生成后，系统将为您进行全域扫描。地图上亮起的霓虹光点，即为您匹配度达 65% 及以上的推荐球场。</p>
@@ -326,8 +354,10 @@
           </div>
           <div id="caddy-bag-actions">
             <button id="caddy-bag-save" type="button">保存球包</button>
+            <button id="caddy-bag-default" type="button">恢复默认</button>
             <button id="caddy-bag-reset" type="button">清空</button>
           </div>
+          <p class="profile-bag-note">未保存时使用估算球包；保存真实距离后，选杆建议会按你的常用码数调整。</p>
         </details>
         <div id="caddy-action-row">
           <button id="caddy-ask" type="button">重新分析</button>
@@ -392,7 +422,7 @@
     };
   </script>
   <script type="module">
-    import("./main.js?v=desktop-caddy-visible-20260522").catch((error) => {
+    import("./main.js?v=mobile-marker-bag-20260522").catch((error) => {
       console.error(error);
       const detail = error?.message ? ` 错误信息：${error.message}` : "";
       window.showPageError?.(

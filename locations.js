@@ -799,7 +799,10 @@ function enrichCourse(loc, index) {
   const region = inferRegion(loc.name);
   const poiName = loc.amapPoiName || getDefaultCoursePoiName(loc.name);
   const courseMapCenter = loc.courseMapCenter || { lat: loc.lat, lng: loc.lng };
-  const explicitModel = Boolean(loc.model);
+  const explicitModel = typeof loc.model === "string" && Boolean(loc.model.trim());
+  const explicitRealviewVideo = typeof loc.realviewVideo === "string" && loc.realviewVideo.trim() ? loc.realviewVideo.trim() : null;
+  const explicitPanoVideo = typeof loc.panoVideo === "string" && loc.panoVideo.trim() ? loc.panoVideo.trim() : null;
+  const hasLocalRealview = Boolean(explicitRealviewVideo || explicitPanoVideo);
   const courseType = loc.courseType || getDefaultCourseType(loc);
   const difficulty = getDefaultDifficulty(loc);
   return {
@@ -813,10 +816,11 @@ function enrichCourse(loc, index) {
     terrainMap: loc.terrainMap || "./assets/fallback/terrain.svg",
     satelliteImage: loc.satelliteImage || "./assets/fallback/satellite.svg",
     environmentImages: loc.environmentImages || ["./assets/fallback/environment.svg"],
-    realviewVideo: loc.realviewVideo || "",
-    panoVideo: loc.panoVideo || "",
-    demoCourseRealview: Boolean(loc.demoCourseRealview),
-    realviewType: loc.realviewType || (loc.demoCourseRealview ? "demo" : ""),
+    realviewVideo: explicitRealviewVideo,
+    panoVideo: explicitPanoVideo,
+    hasLocalRealview,
+    demoCourseRealview: hasLocalRealview && Boolean(loc.demoCourseRealview),
+    realviewType: hasLocalRealview ? (loc.realviewType || (loc.demoCourseRealview ? "demo" : "local")) : "",
     realviewNote: loc.realviewNote || "",
     externalMapProvider: loc.externalMapProvider || "amap",
     externalMapUrl: loc.externalMapUrl || "",
@@ -833,7 +837,7 @@ function enrichCourse(loc, index) {
     greenSpeed: loc.greenSpeed || "待确认",
     signatureHoles: normalizeArray(loc.signatureHoles),
     hasIndependentModel: explicitModel,
-    model: loc.model || "./assets/golf_scene.glb",
+    model: typeof loc.model === "string" && loc.model.trim() ? loc.model.trim() : "",
     holes: loc.holes || 18,
     par: loc.par || 72,
     terrainLabel: loc.terrainLabel || loc.tags.terrain,

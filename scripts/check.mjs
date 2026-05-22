@@ -135,6 +135,22 @@ function checkAbsoluteAssetPaths() {
   pass("资源路径绝对路径扫描完成");
 }
 
+function checkRealviewPolicy() {
+  const content = readText("locations.js");
+  const forbiddenPatterns = [
+    /index\s*%\s*2[\s\S]{0,220}course_realview_/,
+    /course_realview_[12]\.mp4[\s\S]{0,220}index\s*%\s*2/,
+  ];
+
+  forbiddenPatterns.forEach((pattern) => {
+    if (pattern.test(content)) {
+      fail("locations.js 存在按 index 奇偶自动分配实景视频的逻辑，请只给明确配置的球场设置 realviewVideo/panoVideo");
+    }
+  });
+
+  pass("本地实景视频策略检查完成");
+}
+
 function checkGitTrackedIgnores() {
   let output = "";
   try {
@@ -166,6 +182,7 @@ async function main() {
   checkFile("main.js");
   checkFile("style.css");
   checkFile("locations.js");
+  checkFile("package.json");
   checkFile("assets/caddy_photo.png");
 
   const modelStat = checkFile("assets/golf_scene.glb");
@@ -175,6 +192,7 @@ async function main() {
 
   await checkLocations();
   checkAbsoluteAssetPaths();
+  checkRealviewPolicy();
   checkGitTrackedIgnores();
 
   console.log("");
